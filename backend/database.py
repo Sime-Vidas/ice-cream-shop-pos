@@ -46,6 +46,22 @@ def initialize_database():
         """
     )
 
+    existing_product = connection.execute(
+        "SELECT id FROM products WHERE name = ?",
+        ("Sladoled",)
+    ).fetchone()
+
+    if existing_product is None:
+        connection.execute(
+            """
+            INSERT INTO products (name, price_cents, active)
+            VALUES (?, ?, ?)
+            """,
+            ("Sladoled", 250, 1)
+        )
+
+    connection.commit()
+
     connection.close()
 
 
