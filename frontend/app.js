@@ -1,0 +1,122 @@
+const productsContainer = document.querySelector("#products");
+const orderItemsContainer = document.querySelector("#order-items");
+const totalElement = document.querySelector("#total");
+const clearOrderButton = document.querySelector("#clear-order");
+const paymentButtons = document.querySelectorAll(".payment-buttons button");
+
+const euroFormatter = new Intl.NumberFormat("hr-HR", {
+    style: "currency",
+    currency: "EUR"
+});
+
+const order = new Map();
+
+
+function addProductToOrder(product) {
+    const existingItem = order.get(product.id);
+
+    if (existingItem) {
+        existingItem.quantity += 1;
+    } else {
+        order.set(product.id, {
+            ...product,
+            quantity: 1
+        });
+    }
+
+    renderOrder();
+}
+
+
+function renderOrder() {
+    if (order.size === 0) {
+        orderItemsContainer.innerHTML = `
+            <p class="empty-order">Račun je prazan.</p>
+        `;
+
+        totalElement.textContent = euroFormatter.format(0);
+
+        for (const button of paymentButtons) {
+            button.disabled = true;
+        }
+
+        return;
+    }
+
+    orderItemsContainer.innerHTML = "";
+
+    let totalCents = 0;
+
+    for (const item of order.values()) {
+        const lineTotalCents = item.price_cents * item.quantity;
+        totalCents += lineTotalCents;
+
+        const orderItem = document.createElement("div");
+        orderItem.className = "order-item";
+
+        orderItem.innerHTML = `
+            <div>
+                <strong>${item.name}</strong>
+                <span>${euroFormatter.format(item.price_cents)} × ${item.quantity}</span>
+            </div>
+
+            <strong>${euroFormatter.format(lineTotalCents / 100)}</strong>
+        `;
+
+        orderItemsContainer.appendChild(orderItem);
+    }
+
+    totalElement.textContent = euroFormatter.format(totalCents / 100);
+
+    for (const button of paymentButtons) {
+        button.disabled = false;
+    }
+}
+
+
+async function loadProducts() {
+    try {
+        const response = await fetch("/api/products");
+
+        if (!response.ok) {
+            throw new Error("Proizvodi se nisu mogli učitati.");
+        }
+
+        const products = await response.json();
+
+        productsContainer.innerHTML = "";
+
+        for (const product of products) {
+            const productButton = document.createElement("button");
+
+            productButton.type = "button";
+            productButton.className = "product-button";
+
+            productButton.innerHTML = `
+                <span>${product.name}</span>
+                <strong>${euroFormatter.format(product.price_cents / 100)}</strong>
+            `;
+
+            productButton.addEventListener("click", () => {
+                addProductToOrder(product);
+            });
+
+            productsContainer.appendChild(productButton);
+        }
+    } catch (error) {
+        productsContainer.innerHTML = `
+            <p>Dogodila se greška prilikom učitavanja proizvoda.</p>
+        `;
+
+        console.error(error);
+    }
+}
+
+
+clearOrderButton.addEventListener("click", () => {
+    order.clear();
+    renderOrder();
+});
+
+
+loadProducts();

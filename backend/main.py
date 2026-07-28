@@ -1,12 +1,26 @@
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.database import get_database_connection, initialize_database
 
+FRONTEND_DIRECTORY = Path(__file__).resolve().parent.parent / "frontend"
 
 initialize_database()
 
 app = FastAPI(title="Ice Cream Shop POS")
 
+app.mount(
+    "/static",
+    StaticFiles(directory=FRONTEND_DIRECTORY),
+    name="static"
+)
+
+@app.get("/", response_class=FileResponse)
+def get_pos_page():
+    return FRONTEND_DIRECTORY / "index.html"
 
 @app.get("/api/health")
 def health_check():

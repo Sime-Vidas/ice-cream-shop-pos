@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="hr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Ice Cream Shop POS</title>
+
+    <link rel="stylesheet" href="/static/styles.css">
+    <script defer src="/static/app.js?v=2"></script>
+</head>
+<body>
+    <main class="pos">
+        <section class="products-panel">
+            <header class="panel-header">
+                <div>
+                    <p class="eyebrow">Prodaja</p>
+                    <h1>Sladoled</h1>
+                </div>
+
+                <span class="status">Blagajna aktivna</span>
+            </header>
+
+            <div id="products" class="product-grid">
+                <p>Učitavanje proizvoda...</p>
+            </div>
+        </section>
+
+        <section class="order-panel">
+            <header class="order-header">
+                <div>
+                    <p class="eyebrow">Trenutna narudžba</p>
+                    <h2>Račun</h2>
+                </div>
+
+                <button id="clear-order" type="button">Obriši sve</button>
+            </header>
+
+            <div id="order-items" class="order-items">
+                <p class="empty-order">Račun je prazan.</p>
+            </div>
+
+            <footer class="order-footer">
+                <div class="total-row">
+                    <span>Ukupno</span>
+                    <strong id="total">0,00 €</strong>
+                </div>
+
+                <div class="payment-buttons">
+                    <button type="button" disabled>Gotovina</button>
+                    <button type="button" disabled>Kartica</button>
+                </div>
+            </footer>
+        </section>
+    </main>
+</body>
+</html>
