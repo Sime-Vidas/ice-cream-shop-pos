@@ -218,6 +218,43 @@ h2 {
     font-size: 14px;
 }
 
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.quantity-controls button {
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: var(--surface-soft);
+    color: var(--navy);
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.quantity-controls button:hover {
+    border-color: var(--blue);
+    background: var(--mint);
+}
+
+.quantity-controls button:active {
+    transform: scale(0.96);
+}
+
+.quantity-controls span {
+    min-width: 24px;
+    color: var(--navy);
+    font-size: 17px;
+    font-weight: 800;
+    text-align: center;
+}
+
 .order-footer {
     padding-top: 24px;
     border-top: 1px solid var(--line);

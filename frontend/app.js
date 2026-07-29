@@ -54,10 +54,32 @@ function renderOrder() {
         const orderItem = document.createElement("div");
         orderItem.className = "order-item";
 
-        orderItem.innerHTML = `
+                orderItem.innerHTML = `
             <div>
                 <strong>${item.name}</strong>
-                <span>${euroFormatter.format(item.price_cents)} × ${item.quantity}</span>
+                <span>${euroFormatter.format(item.price_cents / 100)} po komadu</span>
+            </div>
+
+            <div class="quantity-controls">
+                <button
+                    type="button"
+                    data-action="decrease"
+                    data-product-id="${item.id}"
+                    aria-label="Smanji količinu"
+                >
+                    −
+                </button>
+
+                <span>${item.quantity}</span>
+
+                <button
+                    type="button"
+                    data-action="increase"
+                    data-product-id="${item.id}"
+                    aria-label="Povećaj količinu"
+                >
+                    +
+                </button>
             </div>
 
             <strong>${euroFormatter.format(lineTotalCents / 100)}</strong>
@@ -158,6 +180,34 @@ async function loadProducts() {
     }
 }
 
+orderItemsContainer.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-action]");
+
+    if (!button) {
+        return;
+    }
+
+    const productId = Number(button.dataset.productId);
+    const item = order.get(productId);
+
+    if (!item) {
+        return;
+    }
+
+    if (button.dataset.action === "increase") {
+        item.quantity += 1;
+    }
+
+    if (button.dataset.action === "decrease") {
+        item.quantity -= 1;
+
+        if (item.quantity === 0) {
+            order.delete(productId);
+        }
+    }
+
+    renderOrder();
+});
 
 clearOrderButton.addEventListener("click", () => {
     order.clear();
