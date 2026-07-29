@@ -7,8 +7,8 @@
 
     <title>Ice Cream Shop POS</title>
 
-    <link rel="stylesheet" href="/static/styles.css?v=9">
-    <script defer src="/static/app.js?v=9"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=11">
+    <script defer src="/static/app.js?v=10"></script>
 </head>
 
 <body>
@@ -21,6 +21,9 @@
                 </div>
 
                 <div class="panel-actions">
+                    <button id="open-daily-total" type="button">
+                        Ukupno
+                    </button>
                     <button id="open-history" type="button">
                         Povijest računa
                     </button>
@@ -186,6 +189,51 @@
             </button>
         </div>
     </dialog>
+    <dialog id="daily-total-dialog" class="daily-total-dialog">
+    <header class="daily-total-header">
+        <div>
+            <p class="eyebrow">Dnevni promet</p>
+            <h2 id="daily-total-date">—</h2>
+        </div>
+
+        <button
+            id="close-daily-total"
+            type="button"
+            aria-label="Zatvori dnevni promet"
+        >
+            ×
+        </button>
+    </header>
+
+    <div class="daily-total-content">
+        <div class="daily-total-main">
+            <span>Ukupno danas</span>
+            <strong id="daily-total-amount">0,00 €</strong>
+        </div>
+
+        <dl class="daily-total-breakdown">
+            <div>
+                <dt>Gotovina</dt>
+                <dd id="daily-cash-total">0,00 €</dd>
+            </div>
+
+            <div>
+                <dt>Kartica</dt>
+                <dd id="daily-card-total">0,00 €</dd>
+            </div>
+
+            <div>
+                <dt>Broj računa</dt>
+                <dd id="daily-receipt-count">0</dd>
+            </div>
+
+            <div>
+                <dt>Stornirano</dt>
+                <dd id="daily-storno-total">0,00 € · 0 računa</dd>
+            </div>
+        </dl>
+    </div>
+</dialog>
 </body>
 
 </html>

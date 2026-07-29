@@ -31,6 +31,28 @@ const stornoReceiptNumber = document.querySelector(
 const cancelStornoButton = document.querySelector("#cancel-storno");
 const confirmStornoButton = document.querySelector("#confirm-storno");
 
+const openDailyTotalButton = document.querySelector(
+    "#open-daily-total"
+);
+const dailyTotalDialog = document.querySelector(
+    "#daily-total-dialog"
+);
+const closeDailyTotalButton = document.querySelector(
+    "#close-daily-total"
+);
+const dailyTotalDate = document.querySelector("#daily-total-date");
+const dailyTotalAmount = document.querySelector(
+    "#daily-total-amount"
+);
+const dailyCashTotal = document.querySelector("#daily-cash-total");
+const dailyCardTotal = document.querySelector("#daily-card-total");
+const dailyReceiptCount = document.querySelector(
+    "#daily-receipt-count"
+);
+const dailyStornoTotal = document.querySelector(
+    "#daily-storno-total"
+);
+
 const euroFormatter = new Intl.NumberFormat("hr-HR", {
     style: "currency",
     currency: "EUR"
@@ -39,6 +61,10 @@ const euroFormatter = new Intl.NumberFormat("hr-HR", {
 const dateTimeFormatter = new Intl.DateTimeFormat("hr-HR", {
     dateStyle: "short",
     timeStyle: "short"
+});
+
+const dateFormatter = new Intl.DateTimeFormat("hr-HR", {
+    dateStyle: "long"
 });
 
 const order = new Map();
@@ -390,6 +416,60 @@ async function confirmStorno() {
     }
 }
 
+async function loadDailyTotal() {
+    dailyTotalDate.textContent = "Učitavanje...";
+    dailyTotalAmount.textContent = euroFormatter.format(0);
+    dailyCashTotal.textContent = euroFormatter.format(0);
+    dailyCardTotal.textContent = euroFormatter.format(0);
+    dailyReceiptCount.textContent = "0";
+    dailyStornoTotal.textContent =
+        `${euroFormatter.format(0)} · 0 računa`;
+
+    dailyTotalDialog.showModal();
+
+    try {
+        const response = await fetch("/api/reports/today");
+        const report = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                report.detail ||
+                "Dnevni promet nije se mogao učitati."
+            );
+        }
+
+        const reportDate = new Date(
+            `${report.date}T00:00:00`
+        );
+
+        dailyTotalDate.textContent =
+            dateFormatter.format(reportDate);
+
+        dailyTotalAmount.textContent =
+            euroFormatter.format(report.total_cents / 100);
+
+        dailyCashTotal.textContent =
+            euroFormatter.format(report.cash_total_cents / 100);
+
+        dailyCardTotal.textContent =
+            euroFormatter.format(report.card_total_cents / 100);
+
+        dailyReceiptCount.textContent =
+            String(report.receipt_count);
+
+        dailyStornoTotal.textContent = `
+            ${euroFormatter.format(
+                report.storned_total_cents / 100
+            )} · ${report.storned_receipt_count} računa
+        `.trim();
+
+    } catch (error) {
+        dailyTotalDialog.close();
+        window.alert(error.message);
+        console.error(error);
+    }
+}
+
 async function loadProducts() {
     try {
         const response = await fetch("/api/products");
@@ -513,6 +593,14 @@ cancelStornoButton.addEventListener("click", () => {
 
 confirmStornoButton.addEventListener("click", () => {
     confirmStorno();
+});
+
+openDailyTotalButton.addEventListener("click", () => {
+    loadDailyTotal();
+});
+
+closeDailyTotalButton.addEventListener("click", () => {
+    dailyTotalDialog.close();
 });
 
 loadProducts();

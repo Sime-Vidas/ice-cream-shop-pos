@@ -5,12 +5,15 @@ from pydantic import BaseModel, Field
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from uuid import uuid4
 
 from backend.database import get_database_connection, initialize_database
 
 FRONTEND_DIRECTORY = Path(__file__).resolve().parent.parent / "frontend"
+
+SHOP_TIMEZONE = ZoneInfo("Europe/Zagreb")
 
 class SaleItemRequest(BaseModel):
     product_id: int
@@ -66,6 +69,118 @@ def get_products():
         }
         for product in products
     ]
+
+@app.get("/api/reports/today")
+def get_today_report():
+    now_zagreb = datetime.now(SHOP_TIMEZONE)
+
+    start_of_day_zagreb = now_zagreb.replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+
+    start_of_next_day_zagreb = (
+        start_of_day_zagreb + timedelta(days=1)
+    )
+
+    start_utc = (
+        start_of_day_zagreb
+        .astimezone(timezone.utc)
+        .isoformat()
+    )
+
+    end_utc = (
+        start_of_next_day_zagreb
+        .astimezone(timezone.utc)
+        .isoformat()
+    )
+
+    connection = get_database_connection()
+
+    try:
+        report = connection.execute(
+            """
+            SELECT
+                COUNT(
+                    CASE
+                        WHEN status = 'completed'
+                        THEN 1
+                    END
+                ) AS receipt_count,
+
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN status = 'completed'
+                            THEN total_cents
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS total_cents,
+
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN status = 'completed'
+                                AND payment_method = 'cash'
+                            THEN total_cents
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS cash_total_cents,
+
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN status = 'completed'
+                                AND payment_method = 'card'
+                            THEN total_cents
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS card_total_cents,
+
+                COUNT(
+                    CASE
+                        WHEN status = 'storned'
+                        THEN 1
+                    END
+                ) AS storned_receipt_count,
+
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN status = 'storned'
+                            THEN total_cents
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS storned_total_cents
+            FROM sales
+            WHERE created_at >= ?
+              AND created_at < ?
+            """,
+            (start_utc, end_utc)
+        ).fetchone()
+
+        return {
+            "date": now_zagreb.date().isoformat(),
+            "total_cents": report["total_cents"],
+            "cash_total_cents": report["cash_total_cents"],
+            "card_total_cents": report["card_total_cents"],
+            "receipt_count": report["receipt_count"],
+            "storned_total_cents": report["storned_total_cents"],
+            "storned_receipt_count": report["storned_receipt_count"]
+        }
+
+    finally:
+        connection.close()
 
 @app.get("/api/sales")
 def get_sales():
