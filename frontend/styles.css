@@ -319,6 +319,104 @@ h2 {
     opacity: 0.35;
 }
 
+.receipt-dialog {
+    width: min(460px, calc(100% - 32px));
+    padding: 38px;
+    border: 0;
+    border-radius: 24px;
+    background: var(--surface);
+    color: var(--navy);
+    box-shadow: 0 28px 90px rgba(11, 35, 52, 0.28);
+    text-align: center;
+}
+
+.receipt-dialog::backdrop {
+    background: rgba(11, 35, 52, 0.58);
+    backdrop-filter: blur(5px);
+}
+
+.receipt-dialog .eyebrow {
+    margin-top: 18px;
+}
+
+.receipt-dialog h2 {
+    margin-top: 4px;
+    font-size: 34px;
+}
+
+.receipt-success-icon {
+    width: 70px;
+    height: 70px;
+    display: grid;
+    place-items: center;
+    margin: 0 auto;
+    border-radius: 50%;
+    background: var(--mint);
+    color: var(--success);
+    font-size: 36px;
+    font-weight: 800;
+}
+
+.demo-warning {
+    margin: 20px 0;
+    padding: 11px 14px;
+    border-radius: 10px;
+    background: #fff6df;
+    color: #805f16;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.receipt-details {
+    display: grid;
+    gap: 0;
+    margin: 24px 0;
+    border-top: 1px solid var(--line);
+    text-align: left;
+}
+
+.receipt-details div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.receipt-details dt {
+    color: var(--text-soft);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.receipt-details dd {
+    margin: 0;
+    font-weight: 800;
+}
+
+#receipt-total {
+    color: var(--blue-dark);
+    font-size: 22px;
+}
+
+#close-receipt {
+    width: 100%;
+    min-height: 58px;
+    border: 0;
+    border-radius: 13px;
+    background: var(--navy);
+    color: white;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+#close-receipt:hover {
+    background: var(--navy-light);
+}
+
 @media (max-width: 850px) {
     .pos {
         grid-template-columns: 1fr;

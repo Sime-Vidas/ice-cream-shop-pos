@@ -7,8 +7,8 @@
 
     <title>Ice Cream Shop POS</title>
 
-    <link rel="stylesheet" href="/static/styles.css?v=2">
-    <script defer src="/static/app.js?v=4"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=3">
+    <script defer src="/static/app.js?v=5"></script>
 </head>
 
 <body>
@@ -60,6 +60,37 @@
             </footer>
         </section>
     </main>
+        <dialog id="receipt-dialog" class="receipt-dialog">
+        <div class="receipt-success-icon" aria-hidden="true">✓</div>
+
+        <p class="eyebrow">Prodaja završena</p>
+        <h2>Račun je spremljen</h2>
+
+        <p class="demo-warning">
+            Demonstracijski račun — nije fiskaliziran
+        </p>
+
+        <dl class="receipt-details">
+            <div>
+                <dt>Broj računa</dt>
+                <dd id="receipt-number">—</dd>
+            </div>
+
+            <div>
+                <dt>Način plaćanja</dt>
+                <dd id="receipt-payment">—</dd>
+            </div>
+
+            <div>
+                <dt>Ukupno</dt>
+                <dd id="receipt-total">0,00 €</dd>
+            </div>
+        </dl>
+
+        <button id="close-receipt" type="button">
+            Novi račun
+        </button>
+    </dialog>
 </body>
 
 </html>

@@ -3,6 +3,11 @@ const orderItemsContainer = document.querySelector("#order-items");
 const totalElement = document.querySelector("#total");
 const clearOrderButton = document.querySelector("#clear-order");
 const paymentButtons = document.querySelectorAll(".payment-buttons button");
+const receiptDialog = document.querySelector("#receipt-dialog");
+const receiptNumberElement = document.querySelector("#receipt-number");
+const receiptPaymentElement = document.querySelector("#receipt-payment");
+const receiptTotalElement = document.querySelector("#receipt-total");
+const closeReceiptButton = document.querySelector("#close-receipt");
 
 const euroFormatter = new Intl.NumberFormat("hr-HR", {
     style: "currency",
@@ -127,10 +132,17 @@ async function completeSale(paymentMethod) {
             );
         }
 
-        window.alert(
-            `Račun ${result.receipt_number} uspješno je spremljen.\n` +
-            `Ukupno: ${euroFormatter.format(result.total_cents / 100)}`
-        );
+                receiptNumberElement.textContent = result.receipt_number;
+
+        receiptPaymentElement.textContent =
+            result.payment_method === "cash"
+                ? "Gotovina"
+                : "Kartica";
+
+        receiptTotalElement.textContent =
+            euroFormatter.format(result.total_cents / 100);
+
+        receiptDialog.showModal();
 
         order.clear();
         renderOrder();
@@ -219,5 +231,9 @@ for (const button of paymentButtons) {
         completeSale(button.dataset.paymentMethod);
     });
 }
+
+closeReceiptButton.addEventListener("click", () => {
+    receiptDialog.close();
+});
 
 loadProducts();
