@@ -8,10 +8,19 @@ const receiptNumberElement = document.querySelector("#receipt-number");
 const receiptPaymentElement = document.querySelector("#receipt-payment");
 const receiptTotalElement = document.querySelector("#receipt-total");
 const closeReceiptButton = document.querySelector("#close-receipt");
+const openHistoryButton = document.querySelector("#open-history");
+const historyDialog = document.querySelector("#history-dialog");
+const closeHistoryButton = document.querySelector("#close-history");
+const historyList = document.querySelector("#history-list");
 
 const euroFormatter = new Intl.NumberFormat("hr-HR", {
     style: "currency",
     currency: "EUR"
+});
+
+const dateTimeFormatter = new Intl.DateTimeFormat("hr-HR", {
+    dateStyle: "short",
+    timeStyle: "short"
 });
 
 const order = new Map();
@@ -154,6 +163,79 @@ async function completeSale(paymentMethod) {
     }
 }
 
+async function loadSalesHistory() {
+    historyList.innerHTML = `
+        <p class="history-message">Učitavanje računa...</p>
+    `;
+
+    historyDialog.showModal();
+
+    try {
+        const response = await fetch("/api/sales");
+
+        if (!response.ok) {
+            throw new Error("Povijest računa nije se mogla učitati.");
+        }
+
+        const sales = await response.json();
+
+        if (sales.length === 0) {
+            historyList.innerHTML = `
+                <p class="history-message">
+                    Još nema spremljenih računa.
+                </p>
+            `;
+
+            return;
+        }
+
+        historyList.innerHTML = "";
+
+        for (const sale of sales) {
+            const historyItem = document.createElement("article");
+            historyItem.className = "history-item";
+
+            const paymentMethod =
+                sale.payment_method === "cash"
+                    ? "Gotovina"
+                    : "Kartica";
+
+            const status =
+                sale.status === "completed"
+                    ? "Završen"
+                    : "Storniran";
+
+            historyItem.innerHTML = `
+                <div class="history-item-main">
+                    <strong>${sale.receipt_number}</strong>
+                    <span>
+                        ${dateTimeFormatter.format(new Date(sale.created_at))}
+                    </span>
+                </div>
+
+                <div class="history-item-payment">
+                    <span>${paymentMethod}</span>
+                    <span class="history-status">${status}</span>
+                </div>
+
+                <strong class="history-total">
+                    ${euroFormatter.format(sale.total_cents / 100)}
+                </strong>
+            `;
+
+            historyList.appendChild(historyItem);
+        }
+    } catch (error) {
+        historyList.innerHTML = `
+            <p class="history-message history-error">
+                ${error.message}
+            </p>
+        `;
+
+        console.error(error);
+    }
+}
+
 async function loadProducts() {
     try {
         const response = await fetch("/api/products");
@@ -234,6 +316,14 @@ for (const button of paymentButtons) {
 
 closeReceiptButton.addEventListener("click", () => {
     receiptDialog.close();
+});
+
+openHistoryButton.addEventListener("click", () => {
+    loadSalesHistory();
+});
+
+closeHistoryButton.addEventListener("click", () => {
+    historyDialog.close();
 });
 
 loadProducts();

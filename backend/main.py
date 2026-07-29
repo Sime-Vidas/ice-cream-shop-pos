@@ -67,6 +67,38 @@ def get_products():
         for product in products
     ]
 
+@app.get("/api/sales")
+def get_sales():
+    connection = get_database_connection()
+
+    sales = connection.execute(
+        """
+        SELECT
+            id,
+            receipt_number,
+            created_at,
+            payment_method,
+            total_cents,
+            status
+        FROM sales
+        ORDER BY created_at DESC
+        """
+    ).fetchall()
+
+    connection.close()
+
+    return [
+        {
+            "id": sale["id"],
+            "receipt_number": sale["receipt_number"],
+            "created_at": sale["created_at"],
+            "payment_method": sale["payment_method"],
+            "total_cents": sale["total_cents"],
+            "status": sale["status"]
+        }
+        for sale in sales
+    ]
+
 @app.post("/api/sales", status_code=201)
 def create_sale(sale: SaleRequest):
     if not sale.items:

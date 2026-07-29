@@ -7,8 +7,8 @@
 
     <title>Ice Cream Shop POS</title>
 
-    <link rel="stylesheet" href="/static/styles.css?v=3">
-    <script defer src="/static/app.js?v=5"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=5">
+    <script defer src="/static/app.js?v=6"></script>
 </head>
 
 <body>
@@ -20,7 +20,13 @@
                     <h1>Sladoled</h1>
                 </div>
 
-                <span class="status">Blagajna aktivna</span>
+                <div class="panel-actions">
+                    <button id="open-history" type="button">
+                        Povijest računa
+                    </button>
+
+                    <span class="status">Blagajna aktivna</span>
+                </div>
             </header>
 
             <div id="products" class="product-grid">
@@ -60,7 +66,7 @@
             </footer>
         </section>
     </main>
-        <dialog id="receipt-dialog" class="receipt-dialog">
+    <dialog id="receipt-dialog" class="receipt-dialog">
         <div class="receipt-success-icon" aria-hidden="true">✓</div>
 
         <p class="eyebrow">Prodaja završena</p>
@@ -90,6 +96,22 @@
         <button id="close-receipt" type="button">
             Novi račun
         </button>
+    </dialog>
+    <dialog id="history-dialog" class="history-dialog">
+        <header class="history-header">
+            <div>
+                <p class="eyebrow">Evidencija prodaje</p>
+                <h2>Povijest računa</h2>
+            </div>
+
+            <button id="close-history" type="button" aria-label="Zatvori povijest računa">
+                ×
+            </button>
+        </header>
+
+        <div id="history-list" class="history-list">
+            <p class="history-message">Učitavanje računa...</p>
+        </div>
     </dialog>
 </body>
 
