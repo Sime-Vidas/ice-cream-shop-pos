@@ -23,6 +23,13 @@ const closeSaleDetailsButton = document.querySelector(
     "#close-sale-details"
 );
 const backToHistoryButton = document.querySelector("#back-to-history");
+const openStornoButton = document.querySelector("#open-storno");
+const stornoDialog = document.querySelector("#storno-dialog");
+const stornoReceiptNumber = document.querySelector(
+    "#storno-receipt-number"
+);
+const cancelStornoButton = document.querySelector("#cancel-storno");
+const confirmStornoButton = document.querySelector("#confirm-storno");
 
 const euroFormatter = new Intl.NumberFormat("hr-HR", {
     style: "currency",
@@ -36,6 +43,7 @@ const dateTimeFormatter = new Intl.DateTimeFormat("hr-HR", {
 
 const order = new Map();
 
+let selectedSaleId = null;
 
 function addProductToOrder(product) {
     const existingItem = order.get(product.id);
@@ -227,7 +235,12 @@ async function loadSalesHistory() {
 
                 <div class="history-item-payment">
                     <span>${paymentMethod}</span>
-                    <span class="history-status">${status}</span>
+                    <span
+    class="history-status"
+    data-status="${sale.status}"
+>
+    ${status}
+</span>
                 </div>
 
                 <strong class="history-total">
@@ -253,6 +266,9 @@ async function loadSalesHistory() {
 }
 
 async function loadSaleDetails(saleId) {
+    selectedSaleId = null;
+    openStornoButton.hidden = true;
+
     saleDetailsNumber.textContent = "Učitavanje...";
     saleDetailsDate.textContent = "—";
     saleDetailsPayment.textContent = "—";
@@ -289,6 +305,11 @@ async function loadSaleDetails(saleId) {
             sale.status === "completed"
                 ? "Završen"
                 : "Storniran";
+
+                saleDetailsStatus.dataset.status = sale.status;
+
+        selectedSaleId = sale.id;
+        openStornoButton.hidden = sale.status !== "completed";
 
         saleDetailsTotal.textContent =
             euroFormatter.format(sale.total_cents / 100);
@@ -327,6 +348,45 @@ async function loadSaleDetails(saleId) {
         `;
 
         console.error(error);
+    }
+}
+
+async function confirmStorno() {
+    if (selectedSaleId === null) {
+        return;
+    }
+
+    const saleId = selectedSaleId;
+
+    confirmStornoButton.disabled = true;
+    confirmStornoButton.textContent = "Storniranje...";
+
+    try {
+        const response = await fetch(
+            `/api/sales/${saleId}/storno`,
+            {
+                method: "POST"
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.detail || "Račun se nije mogao stornirati."
+            );
+        }
+
+        stornoDialog.close();
+        await loadSaleDetails(saleId);
+
+    } catch (error) {
+        window.alert(error.message);
+        console.error(error);
+
+    } finally {
+        confirmStornoButton.disabled = false;
+        confirmStornoButton.textContent = "Potvrdi storno";
     }
 }
 
@@ -427,6 +487,32 @@ closeSaleDetailsButton.addEventListener("click", () => {
 backToHistoryButton.addEventListener("click", () => {
     saleDetailsDialog.close();
     loadSalesHistory();
+});
+
+openStornoButton.addEventListener("click", () => {
+    if (selectedSaleId === null) {
+        return;
+    }
+
+    stornoReceiptNumber.textContent =
+        saleDetailsNumber.textContent;
+
+    saleDetailsDialog.close();
+    stornoDialog.showModal();
+});
+
+cancelStornoButton.addEventListener("click", () => {
+    const saleId = selectedSaleId;
+
+    stornoDialog.close();
+
+    if (saleId !== null) {
+        loadSaleDetails(saleId);
+    }
+});
+
+confirmStornoButton.addEventListener("click", () => {
+    confirmStorno();
 });
 
 loadProducts();

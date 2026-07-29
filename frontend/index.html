@@ -7,8 +7,8 @@
 
     <title>Ice Cream Shop POS</title>
 
-    <link rel="stylesheet" href="/static/styles.css?v=7">
-    <script defer src="/static/app.js?v=7"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=9">
+    <script defer src="/static/app.js?v=9"></script>
 </head>
 
 <body>
@@ -156,8 +156,33 @@
                 <strong id="sale-details-total">0,00 €</strong>
             </div>
 
+            <button id="open-storno" type="button" hidden>
+                Storniraj račun
+            </button>
             <button id="back-to-history" type="button">
                 Natrag na povijest
+            </button>
+        </div>
+    </dialog>
+    <dialog id="storno-dialog" class="storno-dialog">
+        <div class="storno-warning-icon" aria-hidden="true">!</div>
+
+        <p class="eyebrow">Potvrda storna</p>
+        <h2>Stornirati ovaj račun?</h2>
+
+        <p class="storno-message">
+            Račun
+            <strong id="storno-receipt-number">—</strong>
+            ostat će spremljen, ali će biti označen kao storniran.
+        </p>
+
+        <div class="storno-actions">
+            <button id="cancel-storno" type="button">
+                Odustani
+            </button>
+
+            <button id="confirm-storno" type="button">
+                Potvrdi storno
             </button>
         </div>
     </dialog>

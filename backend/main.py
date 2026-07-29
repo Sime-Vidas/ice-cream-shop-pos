@@ -162,6 +162,60 @@ def get_sale(sale_id: int):
     finally:
         connection.close()
 
+@app.post("/api/sales/{sale_id}/storno")
+def storno_sale(sale_id: int):
+    connection = get_database_connection()
+
+    try:
+        sale = connection.execute(
+            """
+            SELECT
+                id,
+                receipt_number,
+                status
+            FROM sales
+            WHERE id = ?
+            """,
+            (sale_id,)
+        ).fetchone()
+
+        if sale is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Račun nije pronađen."
+            )
+
+        if sale["status"] == "storned":
+            raise HTTPException(
+                status_code=409,
+                detail="Račun je već storniran."
+            )
+
+        connection.execute(
+            """
+            UPDATE sales
+            SET status = ?
+            WHERE id = ?
+            """,
+            ("storned", sale_id)
+        )
+
+        connection.commit()
+
+        return {
+            "id": sale["id"],
+            "receipt_number": sale["receipt_number"],
+            "status": "storned",
+            "message": "Račun je uspješno storniran."
+        }
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
 @app.post("/api/sales", status_code=201)
 def create_sale(sale: SaleRequest):
     if not sale.items:
