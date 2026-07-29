@@ -12,6 +12,17 @@ const openHistoryButton = document.querySelector("#open-history");
 const historyDialog = document.querySelector("#history-dialog");
 const closeHistoryButton = document.querySelector("#close-history");
 const historyList = document.querySelector("#history-list");
+const saleDetailsDialog = document.querySelector("#sale-details-dialog");
+const saleDetailsNumber = document.querySelector("#sale-details-number");
+const saleDetailsDate = document.querySelector("#sale-details-date");
+const saleDetailsPayment = document.querySelector("#sale-details-payment");
+const saleDetailsStatus = document.querySelector("#sale-details-status");
+const saleDetailsItems = document.querySelector("#sale-details-items");
+const saleDetailsTotal = document.querySelector("#sale-details-total");
+const closeSaleDetailsButton = document.querySelector(
+    "#close-sale-details"
+);
+const backToHistoryButton = document.querySelector("#back-to-history");
 
 const euroFormatter = new Intl.NumberFormat("hr-HR", {
     style: "currency",
@@ -68,7 +79,7 @@ function renderOrder() {
         const orderItem = document.createElement("div");
         orderItem.className = "order-item";
 
-                orderItem.innerHTML = `
+        orderItem.innerHTML = `
             <div>
                 <strong>${item.name}</strong>
                 <span>${euroFormatter.format(item.price_cents / 100)} po komadu</span>
@@ -141,7 +152,7 @@ async function completeSale(paymentMethod) {
             );
         }
 
-                receiptNumberElement.textContent = result.receipt_number;
+        receiptNumberElement.textContent = result.receipt_number;
 
         receiptPaymentElement.textContent =
             result.payment_method === "cash"
@@ -192,7 +203,8 @@ async function loadSalesHistory() {
         historyList.innerHTML = "";
 
         for (const sale of sales) {
-            const historyItem = document.createElement("article");
+            const historyItem = document.createElement("button");
+            historyItem.type = "button";
             historyItem.className = "history-item";
 
             const paymentMethod =
@@ -223,6 +235,10 @@ async function loadSalesHistory() {
                 </strong>
             `;
 
+            historyItem.addEventListener("click", () => {
+                loadSaleDetails(sale.id);
+            });
+
             historyList.appendChild(historyItem);
         }
     } catch (error) {
@@ -230,6 +246,84 @@ async function loadSalesHistory() {
             <p class="history-message history-error">
                 ${error.message}
             </p>
+        `;
+
+        console.error(error);
+    }
+}
+
+async function loadSaleDetails(saleId) {
+    saleDetailsNumber.textContent = "Učitavanje...";
+    saleDetailsDate.textContent = "—";
+    saleDetailsPayment.textContent = "—";
+    saleDetailsStatus.textContent = "—";
+    saleDetailsTotal.textContent = euroFormatter.format(0);
+
+    saleDetailsItems.innerHTML = `
+        <p>Učitavanje stavki...</p>
+    `;
+
+    historyDialog.close();
+    saleDetailsDialog.showModal();
+
+    try {
+        const response = await fetch(`/api/sales/${saleId}`);
+        const sale = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                sale.detail || "Detalji računa nisu se mogli učitati."
+            );
+        }
+
+        saleDetailsNumber.textContent = sale.receipt_number;
+        saleDetailsDate.textContent =
+            dateTimeFormatter.format(new Date(sale.created_at));
+
+        saleDetailsPayment.textContent =
+            sale.payment_method === "cash"
+                ? "Gotovina"
+                : "Kartica";
+
+        saleDetailsStatus.textContent =
+            sale.status === "completed"
+                ? "Završen"
+                : "Storniran";
+
+        saleDetailsTotal.textContent =
+            euroFormatter.format(sale.total_cents / 100);
+
+        saleDetailsItems.innerHTML = "";
+
+        for (const item of sale.items) {
+            const itemElement = document.createElement("div");
+            itemElement.className = "sale-details-item";
+
+            itemElement.innerHTML = `
+                <div>
+                    <strong>${item.product_name}</strong>
+                    <span>
+                        ${item.quantity} ×
+                        ${euroFormatter.format(
+                item.unit_price_cents / 100
+            )}
+                    </span>
+                </div>
+
+                <strong>
+                    ${euroFormatter.format(
+                item.line_total_cents / 100
+            )}
+                </strong>
+            `;
+
+            saleDetailsItems.appendChild(itemElement);
+        }
+    } catch (error) {
+        saleDetailsNumber.textContent = "Greška";
+
+        saleDetailsItems.innerHTML = `
+            <p class="history-error">${error.message}</p>
         `;
 
         console.error(error);
@@ -324,6 +418,15 @@ openHistoryButton.addEventListener("click", () => {
 
 closeHistoryButton.addEventListener("click", () => {
     historyDialog.close();
+});
+
+closeSaleDetailsButton.addEventListener("click", () => {
+    saleDetailsDialog.close();
+});
+
+backToHistoryButton.addEventListener("click", () => {
+    saleDetailsDialog.close();
+    loadSalesHistory();
 });
 
 loadProducts();

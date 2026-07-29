@@ -7,8 +7,8 @@
 
     <title>Ice Cream Shop POS</title>
 
-    <link rel="stylesheet" href="/static/styles.css?v=5">
-    <script defer src="/static/app.js?v=6"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=7">
+    <script defer src="/static/app.js?v=7"></script>
 </head>
 
 <body>
@@ -111,6 +111,54 @@
 
         <div id="history-list" class="history-list">
             <p class="history-message">Učitavanje računa...</p>
+        </div>
+    </dialog>
+    <dialog id="sale-details-dialog" class="sale-details-dialog">
+        <header class="sale-details-header">
+            <div>
+                <p class="eyebrow">Detalji računa</p>
+                <h2 id="sale-details-number">—</h2>
+            </div>
+
+            <button id="close-sale-details" type="button" aria-label="Zatvori detalje računa">
+                ×
+            </button>
+        </header>
+
+        <div class="sale-details-content">
+            <dl class="sale-details-summary">
+                <div>
+                    <dt>Datum i vrijeme</dt>
+                    <dd id="sale-details-date">—</dd>
+                </div>
+
+                <div>
+                    <dt>Način plaćanja</dt>
+                    <dd id="sale-details-payment">—</dd>
+                </div>
+
+                <div>
+                    <dt>Status</dt>
+                    <dd id="sale-details-status">—</dd>
+                </div>
+            </dl>
+
+            <section>
+                <h3>Stavke računa</h3>
+
+                <div id="sale-details-items" class="sale-details-items">
+                    <p>Učitavanje stavki...</p>
+                </div>
+            </section>
+
+            <div class="sale-details-total">
+                <span>Ukupno</span>
+                <strong id="sale-details-total">0,00 €</strong>
+            </div>
+
+            <button id="back-to-history" type="button">
+                Natrag na povijest
+            </button>
         </div>
     </dialog>
 </body>

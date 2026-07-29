@@ -99,6 +99,69 @@ def get_sales():
         for sale in sales
     ]
 
+@app.get("/api/sales/{sale_id}")
+def get_sale(sale_id: int):
+    connection = get_database_connection()
+
+    try:
+        sale = connection.execute(
+            """
+            SELECT
+                id,
+                receipt_number,
+                created_at,
+                payment_method,
+                total_cents,
+                status
+            FROM sales
+            WHERE id = ?
+            """,
+            (sale_id,)
+        ).fetchone()
+
+        if sale is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Račun nije pronađen."
+            )
+
+        items = connection.execute(
+            """
+            SELECT
+                product_id,
+                product_name,
+                unit_price_cents,
+                quantity,
+                line_total_cents
+            FROM sale_items
+            WHERE sale_id = ?
+            ORDER BY id
+            """,
+            (sale_id,)
+        ).fetchall()
+
+        return {
+            "id": sale["id"],
+            "receipt_number": sale["receipt_number"],
+            "created_at": sale["created_at"],
+            "payment_method": sale["payment_method"],
+            "total_cents": sale["total_cents"],
+            "status": sale["status"],
+            "items": [
+                {
+                    "product_id": item["product_id"],
+                    "product_name": item["product_name"],
+                    "unit_price_cents": item["unit_price_cents"],
+                    "quantity": item["quantity"],
+                    "line_total_cents": item["line_total_cents"]
+                }
+                for item in items
+            ]
+        }
+
+    finally:
+        connection.close()
+
 @app.post("/api/sales", status_code=201)
 def create_sale(sale: SaleRequest):
     if not sale.items:
