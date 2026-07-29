@@ -53,6 +53,19 @@ const dailyStornoTotal = document.querySelector(
     "#daily-storno-total"
 );
 
+const openDailyHistoryButton = document.querySelector(
+    "#open-daily-history"
+);
+const dailyHistoryDialog = document.querySelector(
+    "#daily-history-dialog"
+);
+const closeDailyHistoryButton = document.querySelector(
+    "#close-daily-history"
+);
+const dailyHistoryList = document.querySelector(
+    "#daily-history-list"
+);
+
 const euroFormatter = new Intl.NumberFormat("hr-HR", {
     style: "currency",
     currency: "EUR"
@@ -470,6 +483,110 @@ async function loadDailyTotal() {
     }
 }
 
+async function loadDailyHistory() {
+    dailyHistoryList.innerHTML = `
+        <p class="history-message">
+            Učitavanje dnevnih izvještaja...
+        </p>
+    `;
+
+    dailyTotalDialog.close();
+    dailyHistoryDialog.showModal();
+
+    try {
+        const response = await fetch("/api/reports/daily");
+        const reports = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                reports.detail ||
+                "Povijest prometa nije se mogla učitati."
+            );
+        }
+
+        if (reports.length === 0) {
+            dailyHistoryList.innerHTML = `
+                <p class="history-message">
+                    Još nema dnevnih izvještaja.
+                </p>
+            `;
+
+            return;
+        }
+
+        dailyHistoryList.innerHTML = "";
+
+        for (const report of reports) {
+            const reportDate = new Date(
+                `${report.date}T00:00:00`
+            );
+
+            const reportItem = document.createElement("article");
+            reportItem.className = "daily-history-item";
+
+            reportItem.innerHTML = `
+                <header class="daily-history-item-header">
+                    <strong>
+                        ${dateFormatter.format(reportDate)}
+                    </strong>
+
+                    <strong class="daily-history-total">
+                        ${euroFormatter.format(
+                            report.total_cents / 100
+                        )}
+                    </strong>
+                </header>
+
+                <dl class="daily-history-breakdown">
+                    <div>
+                        <dt>Gotovina</dt>
+                        <dd>
+                            ${euroFormatter.format(
+                                report.cash_total_cents / 100
+                            )}
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt>Kartica</dt>
+                        <dd>
+                            ${euroFormatter.format(
+                                report.card_total_cents / 100
+                            )}
+                        </dd>
+                    </div>
+
+                    <div>
+                        <dt>Računi</dt>
+                        <dd>${report.receipt_count}</dd>
+                    </div>
+
+                    <div>
+                        <dt>Stornirano</dt>
+                        <dd class="daily-history-storno">
+                            ${euroFormatter.format(
+                                report.storned_total_cents / 100
+                            )}
+                            · ${report.storned_receipt_count}
+                        </dd>
+                    </div>
+                </dl>
+            `;
+
+            dailyHistoryList.appendChild(reportItem);
+        }
+
+    } catch (error) {
+        dailyHistoryList.innerHTML = `
+            <p class="history-message history-error">
+                ${error.message}
+            </p>
+        `;
+
+        console.error(error);
+    }
+}
+
 async function loadProducts() {
     try {
         const response = await fetch("/api/products");
@@ -601,6 +718,14 @@ openDailyTotalButton.addEventListener("click", () => {
 
 closeDailyTotalButton.addEventListener("click", () => {
     dailyTotalDialog.close();
+});
+
+openDailyHistoryButton.addEventListener("click", () => {
+    loadDailyHistory();
+});
+
+closeDailyHistoryButton.addEventListener("click", () => {
+    dailyHistoryDialog.close();
 });
 
 loadProducts();

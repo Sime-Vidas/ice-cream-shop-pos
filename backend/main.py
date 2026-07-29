@@ -182,6 +182,81 @@ def get_today_report():
     finally:
         connection.close()
 
+@app.get("/api/reports/daily")
+def get_daily_reports():
+    connection = get_database_connection()
+
+    try:
+        sales = connection.execute(
+            """
+            SELECT
+                created_at,
+                payment_method,
+                total_cents,
+                status
+            FROM sales
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+
+        reports_by_date = {}
+
+        for sale in sales:
+            created_at_utc = datetime.fromisoformat(
+                sale["created_at"]
+            )
+
+            local_date = (
+                created_at_utc
+                .astimezone(SHOP_TIMEZONE)
+                .date()
+                .isoformat()
+            )
+
+            if local_date not in reports_by_date:
+                reports_by_date[local_date] = {
+                    "date": local_date,
+                    "total_cents": 0,
+                    "cash_total_cents": 0,
+                    "card_total_cents": 0,
+                    "receipt_count": 0,
+                    "storned_total_cents": 0,
+                    "storned_receipt_count": 0
+                }
+
+            report = reports_by_date[local_date]
+
+            if sale["status"] == "completed":
+                report["total_cents"] += sale["total_cents"]
+                report["receipt_count"] += 1
+
+                if sale["payment_method"] == "cash":
+                    report["cash_total_cents"] += (
+                        sale["total_cents"]
+                    )
+
+                if sale["payment_method"] == "card":
+                    report["card_total_cents"] += (
+                        sale["total_cents"]
+                    )
+
+            if sale["status"] == "storned":
+                report["storned_total_cents"] += (
+                    sale["total_cents"]
+                )
+                report["storned_receipt_count"] += 1
+
+        return [
+            reports_by_date[date]
+            for date in sorted(
+                reports_by_date,
+                reverse=True
+            )
+        ]
+
+    finally:
+        connection.close()
+
 @app.get("/api/sales")
 def get_sales():
     connection = get_database_connection()
