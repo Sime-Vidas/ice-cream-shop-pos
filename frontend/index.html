@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="hr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +8,9 @@
     <title>Ice Cream Shop POS</title>
 
     <link rel="stylesheet" href="/static/styles.css?v=1">
-    <script defer src="/static/app.js?v=2"></script>
+    <script defer src="/static/app.js?v=3"></script>
 </head>
+
 <body>
     <main class="pos">
         <section class="products-panel">
@@ -47,11 +49,17 @@
                 </div>
 
                 <div class="payment-buttons">
-                    <button type="button" disabled>Gotovina</button>
-                    <button type="button" disabled>Kartica</button>
+                    <button type="button" data-payment-method="cash" disabled>
+                        Gotovina
+                    </button>
+
+                    <button type="button" data-payment-method="card" disabled>
+                        Kartica
+                    </button>
                 </div>
             </footer>
         </section>
     </main>
 </body>
+
 </html>

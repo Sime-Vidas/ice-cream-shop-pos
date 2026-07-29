@@ -73,6 +73,52 @@ function renderOrder() {
     }
 }
 
+async function completeSale(paymentMethod) {
+    const items = Array.from(order.values()).map((item) => {
+        return {
+            product_id: item.id,
+            quantity: item.quantity
+        };
+    });
+
+    for (const button of paymentButtons) {
+        button.disabled = true;
+    }
+
+    try {
+        const response = await fetch("/api/sales", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                payment_method: paymentMethod,
+                items: items
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.detail || "Račun se nije mogao spremiti."
+            );
+        }
+
+        window.alert(
+            `Račun ${result.receipt_number} uspješno je spremljen.\n` +
+            `Ukupno: ${euroFormatter.format(result.total_cents / 100)}`
+        );
+
+        order.clear();
+        renderOrder();
+
+    } catch (error) {
+        window.alert(error.message);
+        renderOrder();
+        console.error(error);
+    }
+}
 
 async function loadProducts() {
     try {
@@ -118,5 +164,10 @@ clearOrderButton.addEventListener("click", () => {
     renderOrder();
 });
 
+for (const button of paymentButtons) {
+    button.addEventListener("click", () => {
+        completeSale(button.dataset.paymentMethod);
+    });
+}
 
 loadProducts();
