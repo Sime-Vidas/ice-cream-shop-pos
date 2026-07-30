@@ -29,6 +29,8 @@ def initialize_database():
             created_at TEXT NOT NULL,
             payment_method TEXT NOT NULL,
             total_cents INTEGER NOT NULL,
+            cash_received_cents INTEGER,
+            change_cents INTEGER,
             status TEXT NOT NULL DEFAULT 'completed'
         );
 
@@ -45,6 +47,29 @@ def initialize_database():
         );
         """
     )
+
+    sales_columns = {
+        column["name"]
+        for column in connection.execute(
+            "PRAGMA table_info(sales)"
+        ).fetchall()
+    }
+
+    if "cash_received_cents" not in sales_columns:
+        connection.execute(
+            """
+            ALTER TABLE sales
+            ADD COLUMN cash_received_cents INTEGER
+            """
+        )
+
+    if "change_cents" not in sales_columns:
+        connection.execute(
+            """
+            ALTER TABLE sales
+            ADD COLUMN change_cents INTEGER
+            """
+        )
 
     existing_product = connection.execute(
         "SELECT id FROM products WHERE name = ?",

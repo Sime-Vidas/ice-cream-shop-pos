@@ -18,6 +18,10 @@
     box-sizing: border-box;
 }
 
+[hidden] {
+    display: none !important;
+}
+
 body {
     margin: 0;
     min-width: 320px;
@@ -1059,6 +1063,186 @@ h2 {
     color: var(--danger);
 }
 
+.cash-payment-dialog {
+    width: min(560px, calc(100% - 32px));
+    max-height: min(820px, calc(100svh - 32px));
+    padding: 0;
+    border: 0;
+    border-radius: 24px;
+    background: var(--surface);
+    color: var(--navy);
+    box-shadow: 0 28px 90px rgba(11, 35, 52, 0.28);
+}
+
+.cash-payment-dialog::backdrop {
+    background: rgba(11, 35, 52, 0.62);
+    backdrop-filter: blur(5px);
+}
+
+.cash-payment-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 26px 28px 22px;
+    border-bottom: 1px solid var(--line);
+}
+
+.cash-payment-header h2 {
+    font-size: 30px;
+}
+
+#close-cash-payment {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 auto;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--surface-soft);
+    color: var(--navy);
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+#close-cash-payment:hover {
+    border-color: var(--blue);
+    background: var(--mint);
+}
+
+.cash-payment-content {
+    max-height: calc(100svh - 130px);
+    padding: 24px 28px 28px;
+    overflow-y: auto;
+}
+
+.cash-payment-summary {
+    display: grid;
+    gap: 10px;
+}
+
+.cash-payment-summary > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: var(--surface-soft);
+}
+
+.cash-payment-summary span {
+    color: var(--text-soft);
+    font-size: 13px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.cash-payment-summary strong {
+    font-size: 24px;
+}
+
+.cash-change-row {
+    border-color: rgba(35, 134, 110, 0.25) !important;
+    background: var(--mint) !important;
+}
+
+.cash-change-row strong {
+    color: var(--success);
+    font-size: 30px;
+}
+
+.cash-quick-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.cash-quick-buttons button {
+    min-height: 50px;
+    border: 1px solid rgba(43, 143, 163, 0.25);
+    border-radius: 11px;
+    background: var(--surface);
+    color: var(--blue-dark);
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.cash-quick-buttons button:first-child {
+    grid-column: span 2;
+}
+
+.cash-quick-buttons button:hover {
+    border-color: var(--blue);
+    background: var(--mint);
+}
+
+.cash-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.cash-keypad button {
+    min-height: 58px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface-soft);
+    color: var(--navy);
+    font-size: 21px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.cash-keypad button:hover {
+    border-color: var(--blue);
+    background: var(--mint);
+}
+
+.cash-keypad button:active,
+.cash-quick-buttons button:active {
+    transform: scale(0.97);
+}
+
+.cash-payment-actions {
+    display: grid;
+    grid-template-columns: 0.8fr 1.2fr;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.cash-payment-actions button {
+    min-height: 58px;
+    border-radius: 13px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+#cancel-cash-payment {
+    border: 1px solid var(--line);
+    background: var(--surface-soft);
+    color: var(--navy);
+}
+
+#confirm-cash-payment {
+    border: 0;
+    background: var(--success);
+    color: white;
+}
+
+#confirm-cash-payment:hover:not(:disabled) {
+    background: #1b6f5b;
+}
+
+#confirm-cash-payment:disabled {
+    cursor: not-allowed;
+    opacity: 0.35;
+}
+
 @media (min-width: 851px) and (max-width: 1200px) {
     .products-panel {
         padding: 32px 28px;
@@ -1288,5 +1472,38 @@ h2 {
     .daily-history-breakdown {
         grid-template-columns: repeat(2, 1fr);
         gap: 16px;
+    }
+
+        .cash-payment-dialog {
+        width: calc(100% - 20px);
+        border-radius: 18px;
+    }
+
+    .cash-payment-header {
+        padding: 22px 20px 18px;
+    }
+
+    .cash-payment-header h2 {
+        font-size: 25px;
+    }
+
+    .cash-payment-content {
+        padding: 18px 20px 22px;
+    }
+
+    .cash-quick-buttons {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .cash-quick-buttons button:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .cash-keypad button {
+        min-height: 54px;
+    }
+
+    .cash-payment-actions {
+        grid-template-columns: 1fr;
     }
 }

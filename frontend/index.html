@@ -7,8 +7,8 @@
 
     <title>Ice Cream Shop POS</title>
 
-    <link rel="stylesheet" href="/static/styles.css?v=14">
-    <script defer src="/static/app.js?v=11"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=17">
+    <script defer src="/static/app.js?v=13"></script>
 </head>
 
 <body>
@@ -94,6 +94,15 @@
                 <dt>Ukupno</dt>
                 <dd id="receipt-total">0,00 €</dd>
             </div>
+            <div id="receipt-cash-received-row" hidden>
+                <dt>Primljeno</dt>
+                <dd id="receipt-cash-received">0,00 €</dd>
+            </div>
+
+            <div id="receipt-change-row" hidden>
+                <dt>Za vratiti</dt>
+                <dd id="receipt-change">0,00 €</dd>
+            </div>
         </dl>
 
         <button id="close-receipt" type="button">
@@ -139,7 +148,15 @@
                     <dt>Način plaćanja</dt>
                     <dd id="sale-details-payment">—</dd>
                 </div>
+                <div id="sale-details-cash-received-row" hidden>
+                    <dt>Primljeno</dt>
+                    <dd id="sale-details-cash-received">0,00 €</dd>
+                </div>
 
+                <div id="sale-details-change-row" hidden>
+                    <dt>Za vratiti</dt>
+                    <dd id="sale-details-change">0,00 €</dd>
+                </div>
                 <div>
                     <dt>Status</dt>
                     <dd id="sale-details-status">—</dd>
@@ -249,6 +266,86 @@
             <p class="history-message">
                 Učitavanje dnevnih izvještaja...
             </p>
+        </div>
+    </dialog>
+    <dialog id="cash-payment-dialog" class="cash-payment-dialog">
+        <header class="cash-payment-header">
+            <div>
+                <p class="eyebrow">Gotovinsko plaćanje</p>
+                <h2>Naplata računa</h2>
+            </div>
+
+            <button id="close-cash-payment" type="button" aria-label="Zatvori gotovinsko plaćanje">
+                ×
+            </button>
+        </header>
+
+        <div class="cash-payment-content">
+            <div class="cash-payment-summary">
+                <div>
+                    <span>Iznos računa</span>
+                    <strong id="cash-amount-due">0,00 €</strong>
+                </div>
+
+                <div>
+                    <span>Primljeno</span>
+                    <strong id="cash-received-display">0,00 €</strong>
+                </div>
+
+                <div class="cash-change-row">
+                    <span>Za vratiti</span>
+                    <strong id="cash-change-display">0,00 €</strong>
+                </div>
+            </div>
+
+            <div class="cash-quick-buttons">
+                <button type="button" data-cash-quick="exact">
+                    Točan iznos
+                </button>
+
+                <button type="button" data-cash-quick="500">
+                    5 €
+                </button>
+
+                <button type="button" data-cash-quick="1000">
+                    10 €
+                </button>
+
+                <button type="button" data-cash-quick="2000">
+                    20 €
+                </button>
+
+                <button type="button" data-cash-quick="5000">
+                    50 €
+                </button>
+            </div>
+
+            <div class="cash-keypad" aria-label="Unos primljenog iznosa">
+                <button type="button" data-cash-key="1">1</button>
+                <button type="button" data-cash-key="2">2</button>
+                <button type="button" data-cash-key="3">3</button>
+                <button type="button" data-cash-key="4">4</button>
+                <button type="button" data-cash-key="5">5</button>
+                <button type="button" data-cash-key="6">6</button>
+                <button type="button" data-cash-key="7">7</button>
+                <button type="button" data-cash-key="8">8</button>
+                <button type="button" data-cash-key="9">9</button>
+                <button type="button" data-cash-key="clear">C</button>
+                <button type="button" data-cash-key="0">0</button>
+                <button type="button" data-cash-key="backspace" aria-label="Izbriši zadnju znamenku">
+                    ←
+                </button>
+            </div>
+
+            <div class="cash-payment-actions">
+                <button id="cancel-cash-payment" type="button">
+                    Odustani
+                </button>
+
+                <button id="confirm-cash-payment" type="button" disabled>
+                    Završi plaćanje
+                </button>
+            </div>
         </div>
     </dialog>
 </body>

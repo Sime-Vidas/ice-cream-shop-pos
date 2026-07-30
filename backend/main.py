@@ -22,6 +22,10 @@ class SaleItemRequest(BaseModel):
 
 class SaleRequest(BaseModel):
     payment_method: Literal["cash", "card"]
+    cash_received_cents: int | None = Field(
+        default=None,
+        ge=0
+    )
     items: list[SaleItemRequest]
 
 initialize_database()
@@ -302,6 +306,8 @@ def get_sale(sale_id: int):
                 created_at,
                 payment_method,
                 total_cents,
+                cash_received_cents,
+                change_cents,
                 status
             FROM sales
             WHERE id = ?
@@ -336,6 +342,8 @@ def get_sale(sale_id: int):
             "created_at": sale["created_at"],
             "payment_method": sale["payment_method"],
             "total_cents": sale["total_cents"],
+            "cash_received_cents": sale["cash_received_cents"],
+            "change_cents": sale["change_cents"],
             "status": sale["status"],
             "items": [
                 {
@@ -450,26 +458,61 @@ def create_sale(sale: SaleRequest):
                 "line_total_cents": line_total_cents
             })
 
+        if sale.payment_method == "cash":
+            if sale.cash_received_cents is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Potrebno je unijeti primljeni iznos."
+                )
+
+            if sale.cash_received_cents < total_cents:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Primljeni iznos nije dovoljan."
+                )
+
+            cash_received_cents = sale.cash_received_cents
+            change_cents = cash_received_cents - total_cents
+
+        else:
+            if sale.cash_received_cents is not None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Primljeni gotovinski iznos nije dopušten "
+                        "za kartično plaćanje."
+                    )
+                )
+
+            cash_received_cents = None
+            change_cents = None
+
         receipt_number = f"DEMO-{uuid4().hex[:8].upper()}"
         created_at = datetime.now(timezone.utc).isoformat()
 
         sale_cursor = connection.execute(
             """
             INSERT INTO sales (
-                receipt_number,
-                created_at,
-                payment_method,
-                total_cents,
-                status
-            )
-            VALUES (?, ?, ?, ?, ?)
-            """,
+            receipt_number,
+            created_at,
+            payment_method,
+            total_cents,
+            cash_received_cents,
+            change_cents,
+            status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
             (
+                (
                 receipt_number,
                 created_at,
                 sale.payment_method,
                 total_cents,
+                cash_received_cents,
+                change_cents,
                 "completed"
+            )
             )
         )
 
@@ -514,6 +557,8 @@ def create_sale(sale: SaleRequest):
         "created_at": created_at,
         "payment_method": sale.payment_method,
         "total_cents": total_cents,
+        "cash_received_cents": cash_received_cents,
+        "change_cents": change_cents,
         "status": "completed",
         "items": prepared_items
     }

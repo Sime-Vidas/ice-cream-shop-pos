@@ -7,6 +7,16 @@ const receiptDialog = document.querySelector("#receipt-dialog");
 const receiptNumberElement = document.querySelector("#receipt-number");
 const receiptPaymentElement = document.querySelector("#receipt-payment");
 const receiptTotalElement = document.querySelector("#receipt-total");
+const receiptCashReceivedRow = document.querySelector(
+    "#receipt-cash-received-row"
+);
+const receiptCashReceived = document.querySelector(
+    "#receipt-cash-received"
+);
+const receiptChangeRow = document.querySelector(
+    "#receipt-change-row"
+);
+const receiptChange = document.querySelector("#receipt-change");
 const closeReceiptButton = document.querySelector("#close-receipt");
 const openHistoryButton = document.querySelector("#open-history");
 const historyDialog = document.querySelector("#history-dialog");
@@ -19,6 +29,18 @@ const saleDetailsPayment = document.querySelector("#sale-details-payment");
 const saleDetailsStatus = document.querySelector("#sale-details-status");
 const saleDetailsItems = document.querySelector("#sale-details-items");
 const saleDetailsTotal = document.querySelector("#sale-details-total");
+const saleDetailsCashReceivedRow = document.querySelector(
+    "#sale-details-cash-received-row"
+);
+const saleDetailsCashReceived = document.querySelector(
+    "#sale-details-cash-received"
+);
+const saleDetailsChangeRow = document.querySelector(
+    "#sale-details-change-row"
+);
+const saleDetailsChange = document.querySelector(
+    "#sale-details-change"
+);
 const closeSaleDetailsButton = document.querySelector(
     "#close-sale-details"
 );
@@ -80,9 +102,36 @@ const dateFormatter = new Intl.DateTimeFormat("hr-HR", {
     dateStyle: "long"
 });
 
+const cashPaymentDialog = document.querySelector(
+    "#cash-payment-dialog"
+);
+const closeCashPaymentButton = document.querySelector(
+    "#close-cash-payment"
+);
+const cancelCashPaymentButton = document.querySelector(
+    "#cancel-cash-payment"
+);
+const confirmCashPaymentButton = document.querySelector(
+    "#confirm-cash-payment"
+);
+const cashAmountDue = document.querySelector("#cash-amount-due");
+const cashReceivedDisplay = document.querySelector(
+    "#cash-received-display"
+);
+const cashChangeDisplay = document.querySelector(
+    "#cash-change-display"
+);
+const cashQuickButtons = document.querySelectorAll(
+    "[data-cash-quick]"
+);
+const cashKeypad = document.querySelector(".cash-keypad");
+
 const order = new Map();
 
 let selectedSaleId = null;
+
+let cashAmountDueCents = 0;
+let cashReceivedCents = 0;
 
 function addProductToOrder(product) {
     const existingItem = order.get(product.id);
@@ -167,13 +216,96 @@ function renderOrder() {
     }
 }
 
-async function completeSale(paymentMethod) {
+function getOrderTotalCents() {
+    let totalCents = 0;
+
+    for (const item of order.values()) {
+        totalCents += item.price_cents * item.quantity;
+    }
+
+    return totalCents;
+}
+
+
+function updateCashPayment() {
+    const changeCents = Math.max(
+        cashReceivedCents - cashAmountDueCents,
+        0
+    );
+
+    cashAmountDue.textContent =
+        euroFormatter.format(cashAmountDueCents / 100);
+
+    cashReceivedDisplay.textContent =
+        euroFormatter.format(cashReceivedCents / 100);
+
+    cashChangeDisplay.textContent =
+        euroFormatter.format(changeCents / 100);
+
+    confirmCashPaymentButton.disabled =
+        cashReceivedCents < cashAmountDueCents;
+}
+
+
+function openCashPayment() {
+    cashAmountDueCents = getOrderTotalCents();
+    cashReceivedCents = 0;
+
+    updateCashPayment();
+    cashPaymentDialog.showModal();
+}
+
+function handleCashKey(key) {
+    if (key === "clear") {
+        cashReceivedCents = 0;
+        updateCashPayment();
+        return;
+    }
+
+    if (key === "backspace") {
+        cashReceivedCents = Math.floor(
+            cashReceivedCents / 10
+        );
+
+        updateCashPayment();
+        return;
+    }
+
+    const digit = Number(key);
+
+    if (!Number.isInteger(digit)) {
+        return;
+    }
+
+    const nextAmount = cashReceivedCents * 10 + digit;
+
+    if (nextAmount > 9999999) {
+        return;
+    }
+
+    cashReceivedCents = nextAmount;
+    updateCashPayment();
+}
+
+async function completeSale(
+    paymentMethod,
+    receivedCashCents = null
+) {
     const items = Array.from(order.values()).map((item) => {
         return {
             product_id: item.id,
             quantity: item.quantity
         };
     });
+
+    const requestBody = {
+        payment_method: paymentMethod,
+        items: items
+    };
+
+    if (paymentMethod === "cash") {
+        requestBody.cash_received_cents = receivedCashCents;
+    }
 
     for (const button of paymentButtons) {
         button.disabled = true;
@@ -185,10 +317,7 @@ async function completeSale(paymentMethod) {
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({
-                payment_method: paymentMethod,
-                items: items
-            })
+            body: JSON.stringify(requestBody)
         });
 
         const result = await response.json();
@@ -208,6 +337,30 @@ async function completeSale(paymentMethod) {
 
         receiptTotalElement.textContent =
             euroFormatter.format(result.total_cents / 100);
+
+        const hasCashDetails =
+            result.payment_method === "cash" &&
+            result.cash_received_cents !== null &&
+            result.change_cents !== null;
+
+        receiptCashReceivedRow.hidden = !hasCashDetails;
+        receiptChangeRow.hidden = !hasCashDetails;
+
+        if (hasCashDetails) {
+            receiptCashReceived.textContent =
+                euroFormatter.format(
+                    result.cash_received_cents / 100
+                );
+
+            receiptChange.textContent =
+                euroFormatter.format(
+                    result.change_cents / 100
+                );
+        }
+
+        if (cashPaymentDialog.open) {
+            cashPaymentDialog.close();
+        }
 
         receiptDialog.showModal();
 
@@ -308,6 +461,9 @@ async function loadSaleDetails(saleId) {
     selectedSaleId = null;
     openStornoButton.hidden = true;
 
+    saleDetailsCashReceivedRow.hidden = true;
+    saleDetailsChangeRow.hidden = true;
+
     saleDetailsNumber.textContent = "Učitavanje...";
     saleDetailsDate.textContent = "—";
     saleDetailsPayment.textContent = "—";
@@ -340,12 +496,32 @@ async function loadSaleDetails(saleId) {
                 ? "Gotovina"
                 : "Kartica";
 
+        const hasCashDetails =
+            sale.payment_method === "cash" &&
+            sale.cash_received_cents !== null &&
+            sale.change_cents !== null;
+
+        saleDetailsCashReceivedRow.hidden = !hasCashDetails;
+        saleDetailsChangeRow.hidden = !hasCashDetails;
+
+        if (hasCashDetails) {
+            saleDetailsCashReceived.textContent =
+                euroFormatter.format(
+                    sale.cash_received_cents / 100
+                );
+
+            saleDetailsChange.textContent =
+                euroFormatter.format(
+                    sale.change_cents / 100
+                );
+        }
+
         saleDetailsStatus.textContent =
             sale.status === "completed"
                 ? "Završen"
                 : "Storniran";
 
-                saleDetailsStatus.dataset.status = sale.status;
+        saleDetailsStatus.dataset.status = sale.status;
 
         selectedSaleId = sale.id;
         openStornoButton.hidden = sale.status !== "completed";
@@ -472,8 +648,8 @@ async function loadDailyTotal() {
 
         dailyStornoTotal.textContent = `
             ${euroFormatter.format(
-                report.storned_total_cents / 100
-            )} · ${report.storned_receipt_count} računa
+            report.storned_total_cents / 100
+        )} · ${report.storned_receipt_count} računa
         `.trim();
 
     } catch (error) {
@@ -532,8 +708,8 @@ async function loadDailyHistory() {
 
                     <strong class="daily-history-total">
                         ${euroFormatter.format(
-                            report.total_cents / 100
-                        )}
+                report.total_cents / 100
+            )}
                     </strong>
                 </header>
 
@@ -542,8 +718,8 @@ async function loadDailyHistory() {
                         <dt>Gotovina</dt>
                         <dd>
                             ${euroFormatter.format(
-                                report.cash_total_cents / 100
-                            )}
+                report.cash_total_cents / 100
+            )}
                         </dd>
                     </div>
 
@@ -551,8 +727,8 @@ async function loadDailyHistory() {
                         <dt>Kartica</dt>
                         <dd>
                             ${euroFormatter.format(
-                                report.card_total_cents / 100
-                            )}
+                report.card_total_cents / 100
+            )}
                         </dd>
                     </div>
 
@@ -565,8 +741,8 @@ async function loadDailyHistory() {
                         <dt>Stornirano</dt>
                         <dd class="daily-history-storno">
                             ${euroFormatter.format(
-                                report.storned_total_cents / 100
-                            )}
+                report.storned_total_cents / 100
+            )}
                             · ${report.storned_receipt_count}
                         </dd>
                     </div>
@@ -661,9 +837,64 @@ clearOrderButton.addEventListener("click", () => {
 
 for (const button of paymentButtons) {
     button.addEventListener("click", () => {
-        completeSale(button.dataset.paymentMethod);
+        const paymentMethod = button.dataset.paymentMethod;
+
+        if (paymentMethod === "cash") {
+            openCashPayment();
+            return;
+        }
+
+        completeSale("card");
     });
 }
+
+for (const button of cashQuickButtons) {
+    button.addEventListener("click", () => {
+        if (button.dataset.cashQuick === "exact") {
+            cashReceivedCents = cashAmountDueCents;
+        } else {
+            cashReceivedCents = Number(
+                button.dataset.cashQuick
+            );
+        }
+
+        updateCashPayment();
+    });
+}
+
+cashKeypad.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-cash-key]");
+
+    if (!button) {
+        return;
+    }
+
+    handleCashKey(button.dataset.cashKey);
+});
+
+closeCashPaymentButton.addEventListener("click", () => {
+    cashPaymentDialog.close();
+});
+
+cancelCashPaymentButton.addEventListener("click", () => {
+    cashPaymentDialog.close();
+});
+
+confirmCashPaymentButton.addEventListener(
+    "click",
+    async () => {
+        confirmCashPaymentButton.disabled = true;
+
+        await completeSale(
+            "cash",
+            cashReceivedCents
+        );
+
+        if (cashPaymentDialog.open) {
+            updateCashPayment();
+        }
+    }
+);
 
 closeReceiptButton.addEventListener("click", () => {
     receiptDialog.close();
