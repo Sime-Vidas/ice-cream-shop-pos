@@ -23,15 +23,28 @@ def initialize_database():
             active INTEGER NOT NULL DEFAULT 1
         );
 
+                CREATE TABLE IF NOT EXISTS employees (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            pin_hash TEXT NOT NULL,
+            pin_salt TEXT NOT NULL,
+            role TEXT NOT NULL
+                CHECK (role IN ('cashier', 'admin')),
+            active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL
+        );
+
         CREATE TABLE IF NOT EXISTS sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            employee_id INTEGER,
             receipt_number TEXT NOT NULL UNIQUE,
             created_at TEXT NOT NULL,
             payment_method TEXT NOT NULL,
             total_cents INTEGER NOT NULL,
             cash_received_cents INTEGER,
             change_cents INTEGER,
-            status TEXT NOT NULL DEFAULT 'completed'
+            status TEXT NOT NULL DEFAULT 'completed',
+            FOREIGN KEY (employee_id) REFERENCES employees(id)
         );
 
         CREATE TABLE IF NOT EXISTS sale_items (
@@ -54,6 +67,14 @@ def initialize_database():
             "PRAGMA table_info(sales)"
         ).fetchall()
     }
+
+    if "employee_id" not in sales_columns:
+        connection.execute(
+            """
+            ALTER TABLE sales
+            ADD COLUMN employee_id INTEGER
+            """
+        )
 
     if "cash_received_cents" not in sales_columns:
         connection.execute(

@@ -17,6 +17,9 @@ const receiptChangeRow = document.querySelector(
     "#receipt-change-row"
 );
 const receiptChange = document.querySelector("#receipt-change");
+const receiptEmployee = document.querySelector(
+    "#receipt-employee"
+);
 const closeReceiptButton = document.querySelector("#close-receipt");
 const openHistoryButton = document.querySelector("#open-history");
 const historyDialog = document.querySelector("#history-dialog");
@@ -40,6 +43,9 @@ const saleDetailsChangeRow = document.querySelector(
 );
 const saleDetailsChange = document.querySelector(
     "#sale-details-change"
+);
+const saleDetailsEmployee = document.querySelector(
+    "#sale-details-employee"
 );
 const closeSaleDetailsButton = document.querySelector(
     "#close-sale-details"
@@ -102,6 +108,8 @@ const dateFormatter = new Intl.DateTimeFormat("hr-HR", {
     dateStyle: "long"
 });
 
+const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000;
+
 const cashPaymentDialog = document.querySelector(
     "#cash-payment-dialog"
 );
@@ -126,12 +134,29 @@ const cashQuickButtons = document.querySelectorAll(
 );
 const cashKeypad = document.querySelector(".cash-keypad");
 
+const currentEmployeeButton = document.querySelector(
+    "#current-employee"
+);
+const currentEmployeeName = document.querySelector(
+    "#current-employee-name"
+);
+const loginDialog = document.querySelector("#login-dialog");
+const pinDisplay = document.querySelector("#pin-display");
+const loginError = document.querySelector("#login-error");
+const loginKeypad = document.querySelector(".login-keypad");
+const loginButton = document.querySelector("#login-button");
+
 const order = new Map();
 
 let selectedSaleId = null;
 
 let cashAmountDueCents = 0;
 let cashReceivedCents = 0;
+
+let currentEmployee = null;
+let enteredPin = "";
+
+let inactivityTimer = null;
 
 function addProductToOrder(product) {
     const existingItem = order.get(product.id);
@@ -335,6 +360,9 @@ async function completeSale(
                 ? "Gotovina"
                 : "Kartica";
 
+        receiptEmployee.textContent =
+            result.employee?.name || "Nepoznato";
+
         receiptTotalElement.textContent =
             euroFormatter.format(result.total_cents / 100);
 
@@ -417,6 +445,9 @@ async function loadSalesHistory() {
                     ? "Završen"
                     : "Storniran";
 
+            const employeeName =
+                sale.employee?.name || "Nije evidentiran";
+
             historyItem.innerHTML = `
                 <div class="history-item-main">
                     <strong>${sale.receipt_number}</strong>
@@ -426,7 +457,7 @@ async function loadSalesHistory() {
                 </div>
 
                 <div class="history-item-payment">
-                    <span>${paymentMethod}</span>
+                    <span>${paymentMethod} · ${employeeName}</span>
                     <span
     class="history-status"
     data-status="${sale.status}"
@@ -460,13 +491,13 @@ async function loadSalesHistory() {
 async function loadSaleDetails(saleId) {
     selectedSaleId = null;
     openStornoButton.hidden = true;
-
     saleDetailsCashReceivedRow.hidden = true;
     saleDetailsChangeRow.hidden = true;
 
     saleDetailsNumber.textContent = "Učitavanje...";
     saleDetailsDate.textContent = "—";
     saleDetailsPayment.textContent = "—";
+    saleDetailsEmployee.textContent = "—";
     saleDetailsStatus.textContent = "—";
     saleDetailsTotal.textContent = euroFormatter.format(0);
 
@@ -496,6 +527,9 @@ async function loadSaleDetails(saleId) {
                 ? "Gotovina"
                 : "Kartica";
 
+        saleDetailsEmployee.textContent =
+            sale.employee?.name || "Nije evidentiran";
+
         const hasCashDetails =
             sale.payment_method === "cash" &&
             sale.cash_received_cents !== null &&
@@ -524,7 +558,9 @@ async function loadSaleDetails(saleId) {
         saleDetailsStatus.dataset.status = sale.status;
 
         selectedSaleId = sale.id;
-        openStornoButton.hidden = sale.status !== "completed";
+                openStornoButton.hidden =
+            sale.status !== "completed" ||
+            currentEmployee?.role !== "admin";
 
         saleDetailsTotal.textContent =
             euroFormatter.format(sale.total_cents / 100);
@@ -763,6 +799,166 @@ async function loadDailyHistory() {
     }
 }
 
+function updatePinDisplay() {
+    pinDisplay.textContent =
+        enteredPin.length > 0
+            ? "•".repeat(enteredPin.length)
+            : "—";
+
+    loginButton.disabled = enteredPin.length < 4;
+    loginError.hidden = true;
+}
+
+
+function handlePinKey(key) {
+    if (key === "clear") {
+        enteredPin = "";
+        updatePinDisplay();
+        return;
+    }
+
+    if (key === "backspace") {
+        enteredPin = enteredPin.slice(0, -1);
+        updatePinDisplay();
+        return;
+    }
+
+    if (!/^\d$/.test(key) || enteredPin.length >= 6) {
+        return;
+    }
+
+    enteredPin += key;
+    updatePinDisplay();
+}
+
+function clearInactivityTimer() {
+    if (inactivityTimer !== null) {
+        window.clearTimeout(inactivityTimer);
+        inactivityTimer = null;
+    }
+}
+
+
+function resetInactivityTimer() {
+    clearInactivityTimer();
+
+    if (currentEmployee === null) {
+        return;
+    }
+
+    inactivityTimer = window.setTimeout(() => {
+        logout();
+    }, INACTIVITY_TIMEOUT_MS);
+}
+
+function setCurrentEmployee(employee) {
+    currentEmployee = employee;
+    resetInactivityTimer();
+    currentEmployeeName.textContent = employee.name;
+    currentEmployeeButton.hidden = false;
+        openDailyTotalButton.hidden =
+        employee.role !== "admin";
+
+    if (loginDialog.open) {
+        loginDialog.close();
+    }
+}
+
+
+function showLogin() {
+    currentEmployee = null;
+    clearInactivityTimer();
+    enteredPin = "";
+
+    currentEmployeeButton.hidden = true;
+    openDailyTotalButton.hidden = true;
+    updatePinDisplay();
+
+    if (!loginDialog.open) {
+        loginDialog.showModal();
+    }
+}
+
+
+async function checkAuthentication() {
+    try {
+        const response = await fetch("/api/auth/me");
+
+        if (!response.ok) {
+            showLogin();
+            return;
+        }
+
+        const employee = await response.json();
+        setCurrentEmployee(employee);
+
+    } catch (error) {
+        showLogin();
+        console.error(error);
+    }
+}
+
+
+async function login() {
+    if (enteredPin.length < 4) {
+        return;
+    }
+
+    loginButton.disabled = true;
+    loginButton.textContent = "Prijava...";
+
+    try {
+        const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                pin: enteredPin
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.detail || "Prijava nije uspjela."
+            );
+        }
+
+        setCurrentEmployee(result);
+
+    } catch (error) {
+        enteredPin = "";
+        updatePinDisplay();
+
+        loginError.textContent = error.message;
+        loginError.hidden = false;
+
+        console.error(error);
+
+    } finally {
+        loginButton.textContent = "Prijava";
+        loginButton.disabled = enteredPin.length < 4;
+    }
+}
+
+async function logout() {
+    try {
+        await fetch("/api/auth/logout", {
+            method: "POST"
+        });
+
+    } catch (error) {
+        console.error(error);
+
+    } finally {
+        order.clear();
+        renderOrder();
+        showLogin();
+    }
+}
+
 async function loadProducts() {
     try {
         const response = await fetch("/api/products");
@@ -959,4 +1155,51 @@ closeDailyHistoryButton.addEventListener("click", () => {
     dailyHistoryDialog.close();
 });
 
+loginKeypad.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-pin-key]");
+
+    if (!button) {
+        return;
+    }
+
+    handlePinKey(button.dataset.pinKey);
+});
+
+loginButton.addEventListener("click", () => {
+    login();
+});
+
+currentEmployeeButton.addEventListener("click", () => {
+    const shouldLogout = window.confirm(
+        `Odjaviti zaposlenika ${currentEmployee.name}?`
+    );
+
+    if (shouldLogout) {
+        logout();
+    }
+});
+
+loginDialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+});
+
+loginDialog.addEventListener("close", () => {
+    if (currentEmployee === null) {
+        window.setTimeout(() => {
+            showLogin();
+        }, 0);
+    }
+});
+
+window.addEventListener(
+    "pointerdown",
+    resetInactivityTimer
+);
+
+window.addEventListener(
+    "keydown",
+    resetInactivityTimer
+);
+
 loadProducts();
+checkAuthentication();

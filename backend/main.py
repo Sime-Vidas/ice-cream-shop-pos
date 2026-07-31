@@ -2,12 +2,14 @@ from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from uuid import uuid4
+from secrets import token_urlsafe
+from backend.security import verify_pin
 
 from backend.database import get_database_connection, initialize_database
 
@@ -28,9 +30,18 @@ class SaleRequest(BaseModel):
     )
     items: list[SaleItemRequest]
 
+class LoginRequest(BaseModel):
+    pin: str = Field(
+        min_length=4,
+        max_length=6,
+        pattern=r"^\d+$"
+    )
+
 initialize_database()
 
 app = FastAPI(title="Ice Cream Shop POS")
+
+active_sessions: dict[str, int] = {}
 
 app.mount(
     "/static",
@@ -49,6 +60,133 @@ def health_check():
         "message": "Ice Cream Shop POS backend is running"
     }
 
+def get_authenticated_employee(request: Request):
+    session_token = request.cookies.get("pos_session")
+
+    if session_token is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Potrebna je prijava."
+        )
+
+    employee_id = active_sessions.get(session_token)
+
+    if employee_id is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Sesija nije važeća."
+        )
+
+    connection = get_database_connection()
+
+    try:
+        employee = connection.execute(
+            """
+            SELECT id, name, role
+            FROM employees
+            WHERE id = ?
+              AND active = 1
+            """,
+            (employee_id,)
+        ).fetchone()
+
+        if employee is None:
+            active_sessions.pop(session_token, None)
+
+            raise HTTPException(
+                status_code=401,
+                detail="Zaposlenik nije aktivan."
+            )
+
+        return {
+            "id": employee["id"],
+            "name": employee["name"],
+            "role": employee["role"]
+        }
+
+    finally:
+        connection.close()
+
+def require_admin(employee):
+    if employee["role"] != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Potrebna je administratorska ovlast."
+        )
+
+@app.post("/api/auth/login")
+def login(login_request: LoginRequest, response: Response):
+    connection = get_database_connection()
+
+    try:
+        employees = connection.execute(
+            """
+            SELECT id, name, pin_hash, pin_salt, role
+            FROM employees
+            WHERE active = 1
+            ORDER BY id
+            """
+        ).fetchall()
+
+        matched_employee = None
+
+        for employee in employees:
+            if verify_pin(
+                login_request.pin,
+                employee["pin_hash"],
+                employee["pin_salt"]
+            ):
+                matched_employee = employee
+                break
+
+        if matched_employee is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Neispravan PIN."
+            )
+
+        session_token = token_urlsafe(32)
+
+        active_sessions[session_token] = (
+            matched_employee["id"]
+        )
+
+        response.set_cookie(
+            key="pos_session",
+            value=session_token,
+            max_age=12 * 60 * 60,
+            httponly=True,
+            samesite="strict",
+            secure=False,
+            path="/"
+        )
+
+        return {
+            "id": matched_employee["id"],
+            "name": matched_employee["name"],
+            "role": matched_employee["role"]
+        }
+
+    finally:
+        connection.close()
+
+
+@app.get("/api/auth/me")
+def get_current_employee(request: Request):
+    return get_authenticated_employee(request)
+
+
+@app.post("/api/auth/logout", status_code=204)
+def logout(request: Request, response: Response):
+    session_token = request.cookies.get("pos_session")
+
+    if session_token is not None:
+        active_sessions.pop(session_token, None)
+
+    response.delete_cookie(
+        key="pos_session",
+        path="/"
+    )
 
 @app.get("/api/products")
 def get_products():
@@ -75,7 +213,9 @@ def get_products():
     ]
 
 @app.get("/api/reports/today")
-def get_today_report():
+def get_today_report(request: Request):
+    employee = get_authenticated_employee(request)
+    require_admin(employee)
     now_zagreb = datetime.now(SHOP_TIMEZONE)
 
     start_of_day_zagreb = now_zagreb.replace(
@@ -187,7 +327,9 @@ def get_today_report():
         connection.close()
 
 @app.get("/api/reports/daily")
-def get_daily_reports():
+def get_daily_reports(request: Request):
+    employee = get_authenticated_employee(request)
+    require_admin(employee)
     connection = get_database_connection()
 
     try:
@@ -262,20 +404,26 @@ def get_daily_reports():
         connection.close()
 
 @app.get("/api/sales")
-def get_sales():
+def get_sales(request: Request):
+    get_authenticated_employee(request)
     connection = get_database_connection()
 
     sales = connection.execute(
         """
         SELECT
-            id,
-            receipt_number,
-            created_at,
-            payment_method,
-            total_cents,
-            status
+            sales.id,
+            sales.receipt_number,
+            sales.created_at,
+            sales.payment_method,
+            sales.total_cents,
+            sales.status,
+            employees.id AS employee_id,
+            employees.name AS employee_name,
+            employees.role AS employee_role
         FROM sales
-        ORDER BY created_at DESC
+        LEFT JOIN employees
+            ON employees.id = sales.employee_id
+        ORDER BY sales.created_at DESC
         """
     ).fetchall()
 
@@ -288,29 +436,44 @@ def get_sales():
             "created_at": sale["created_at"],
             "payment_method": sale["payment_method"],
             "total_cents": sale["total_cents"],
-            "status": sale["status"]
+            "status": sale["status"],
+                        "employee": (
+                {
+                    "id": sale["employee_id"],
+                    "name": sale["employee_name"],
+                    "role": sale["employee_role"]
+                }
+                if sale["employee_id"] is not None
+                else None
+            )
         }
         for sale in sales
     ]
 
 @app.get("/api/sales/{sale_id}")
-def get_sale(sale_id: int):
+def get_sale(sale_id: int, request: Request):
+    get_authenticated_employee(request)
     connection = get_database_connection()
 
     try:
         sale = connection.execute(
             """
             SELECT
-                id,
-                receipt_number,
-                created_at,
-                payment_method,
-                total_cents,
-                cash_received_cents,
-                change_cents,
-                status
+                sales.id,
+                sales.receipt_number,
+                sales.created_at,
+                sales.payment_method,
+                sales.total_cents,
+                sales.cash_received_cents,
+                sales.change_cents,
+                sales.status,
+                employees.id AS employee_id,
+                employees.name AS employee_name,
+                employees.role AS employee_role
             FROM sales
-            WHERE id = ?
+            LEFT JOIN employees
+                ON employees.id = sales.employee_id
+            WHERE sales.id = ?
             """,
             (sale_id,)
         ).fetchone()
@@ -345,6 +508,15 @@ def get_sale(sale_id: int):
             "cash_received_cents": sale["cash_received_cents"],
             "change_cents": sale["change_cents"],
             "status": sale["status"],
+            "employee": (
+                {
+                    "id": sale["employee_id"],
+                    "name": sale["employee_name"],
+                    "role": sale["employee_role"]
+                }
+                if sale["employee_id"] is not None
+                else None
+            ),
             "items": [
                 {
                     "product_id": item["product_id"],
@@ -361,7 +533,9 @@ def get_sale(sale_id: int):
         connection.close()
 
 @app.post("/api/sales/{sale_id}/storno")
-def storno_sale(sale_id: int):
+def storno_sale(sale_id: int, request: Request):
+    employee = get_authenticated_employee(request)
+    require_admin(employee)
     connection = get_database_connection()
 
     try:
@@ -415,7 +589,8 @@ def storno_sale(sale_id: int):
         connection.close()
 
 @app.post("/api/sales", status_code=201)
-def create_sale(sale: SaleRequest):
+def create_sale(sale: SaleRequest, request: Request):
+    employee = get_authenticated_employee(request)
     if not sale.items:
         raise HTTPException(
             status_code=400,
@@ -493,18 +668,19 @@ def create_sale(sale: SaleRequest):
         sale_cursor = connection.execute(
             """
             INSERT INTO sales (
-            receipt_number,
-            created_at,
-            payment_method,
-            total_cents,
-            cash_received_cents,
-            change_cents,
-            status
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
+                employee_id,
+                receipt_number,
+                created_at,
+                payment_method,
+                total_cents,
+                cash_received_cents,
+                change_cents,
+                status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
             (
-                (
+                employee["id"],
                 receipt_number,
                 created_at,
                 sale.payment_method,
@@ -512,7 +688,6 @@ def create_sale(sale: SaleRequest):
                 cash_received_cents,
                 change_cents,
                 "completed"
-            )
             )
         )
 
@@ -553,6 +728,7 @@ def create_sale(sale: SaleRequest):
 
     return {
         "id": sale_id,
+        "employee": employee,
         "receipt_number": receipt_number,
         "created_at": created_at,
         "payment_method": sale.payment_method,

@@ -7,8 +7,8 @@
 
     <title>Ice Cream Shop POS</title>
 
-    <link rel="stylesheet" href="/static/styles.css?v=17">
-    <script defer src="/static/app.js?v=13"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=18">
+    <script defer src="/static/app.js?v=19"></script>
 </head>
 
 <body>
@@ -28,7 +28,9 @@
                         Povijest računa
                     </button>
 
-                    <span class="status">Blagajna aktivna</span>
+                    <button id="current-employee" class="status employee-status" type="button" hidden>
+                        <span id="current-employee-name">—</span>
+                    </button>
                 </div>
             </header>
 
@@ -91,6 +93,11 @@
             </div>
 
             <div>
+                <dt>Blagajnik</dt>
+                <dd id="receipt-employee">—</dd>
+            </div>
+
+            <div>
                 <dt>Ukupno</dt>
                 <dd id="receipt-total">0,00 €</dd>
             </div>
@@ -147,6 +154,10 @@
                 <div>
                     <dt>Način plaćanja</dt>
                     <dd id="sale-details-payment">—</dd>
+                </div>
+                <div>
+                    <dt>Blagajnik</dt>
+                    <dd id="sale-details-employee">—</dd>
                 </div>
                 <div id="sale-details-cash-received-row" hidden>
                     <dt>Primljeno</dt>
@@ -347,6 +358,45 @@
                 </button>
             </div>
         </div>
+    </dialog>
+    <dialog id="login-dialog" class="login-dialog">
+        <div class="login-icon" aria-hidden="true">●</div>
+
+        <p class="eyebrow">Ice Cream Shop POS</p>
+        <h2>Prijava na blagajnu</h2>
+
+        <p class="login-instruction">
+            Unesite svoj PIN za početak rada.
+        </p>
+
+        <div id="pin-display" class="pin-display" aria-label="Uneseni PIN">
+            —
+        </div>
+
+        <p id="login-error" class="login-error" hidden>
+            Neispravan PIN.
+        </p>
+
+        <div class="login-keypad" aria-label="PIN tipkovnica">
+            <button type="button" data-pin-key="1">1</button>
+            <button type="button" data-pin-key="2">2</button>
+            <button type="button" data-pin-key="3">3</button>
+            <button type="button" data-pin-key="4">4</button>
+            <button type="button" data-pin-key="5">5</button>
+            <button type="button" data-pin-key="6">6</button>
+            <button type="button" data-pin-key="7">7</button>
+            <button type="button" data-pin-key="8">8</button>
+            <button type="button" data-pin-key="9">9</button>
+            <button type="button" data-pin-key="clear">C</button>
+            <button type="button" data-pin-key="0">0</button>
+            <button type="button" data-pin-key="backspace" aria-label="Izbriši zadnju znamenku">
+                ←
+            </button>
+        </div>
+
+        <button id="login-button" type="button" disabled>
+            Prijava
+        </button>
     </dialog>
 </body>
 
