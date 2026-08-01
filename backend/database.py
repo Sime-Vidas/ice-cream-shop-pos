@@ -34,9 +34,35 @@ def initialize_database():
             created_at TEXT NOT NULL
         );
 
+                CREATE TABLE IF NOT EXISTS shifts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            opened_at TEXT NOT NULL,
+            opened_by_employee_id INTEGER NOT NULL,
+            opening_cash_cents INTEGER NOT NULL,
+            closed_at TEXT,
+            closed_by_employee_id INTEGER,
+            expected_cash_cents INTEGER,
+            actual_cash_cents INTEGER,
+            cash_difference_cents INTEGER,
+            status TEXT NOT NULL DEFAULT 'open'
+                CHECK (status IN ('open', 'closed')),
+            FOREIGN KEY (
+                opened_by_employee_id
+            ) REFERENCES employees(id),
+            FOREIGN KEY (
+                closed_by_employee_id
+            ) REFERENCES employees(id)
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS
+            one_open_shift
+        ON shifts(status)
+        WHERE status = 'open';
+
         CREATE TABLE IF NOT EXISTS sales (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             employee_id INTEGER,
+            shift_id INTEGER,
             receipt_number TEXT NOT NULL UNIQUE,
             created_at TEXT NOT NULL,
             payment_method TEXT NOT NULL,
@@ -44,7 +70,8 @@ def initialize_database():
             cash_received_cents INTEGER,
             change_cents INTEGER,
             status TEXT NOT NULL DEFAULT 'completed',
-            FOREIGN KEY (employee_id) REFERENCES employees(id)
+            FOREIGN KEY (employee_id) REFERENCES employees(id),
+            FOREIGN KEY (shift_id) REFERENCES shifts(id)
         );
 
         CREATE TABLE IF NOT EXISTS sale_items (
@@ -73,6 +100,14 @@ def initialize_database():
             """
             ALTER TABLE sales
             ADD COLUMN employee_id INTEGER
+            """
+        )
+
+    if "shift_id" not in sales_columns:
+        connection.execute(
+            """
+            ALTER TABLE sales
+            ADD COLUMN shift_id INTEGER
             """
         )
 

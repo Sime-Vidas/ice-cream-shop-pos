@@ -7,8 +7,8 @@
 
     <title>Ice Cream Shop POS</title>
 
-    <link rel="stylesheet" href="/static/styles.css?v=18">
-    <script defer src="/static/app.js?v=19"></script>
+    <link rel="stylesheet" href="/static/styles.css?v=21">
+    <script defer src="/static/app.js?v=21"></script>
 </head>
 
 <body>
@@ -27,7 +27,9 @@
                     <button id="open-history" type="button">
                         Povijest računa
                     </button>
-
+                    <button id="current-shift" class="shift-status" type="button" hidden>
+                        Smjena zatvorena
+                    </button>
                     <button id="current-employee" class="status employee-status" type="button" hidden>
                         <span id="current-employee-name">—</span>
                     </button>
@@ -398,6 +400,167 @@
             Prijava
         </button>
     </dialog>
+    <dialog id="open-shift-dialog" class="open-shift-dialog">
+        <div class="shift-icon" aria-hidden="true">€</div>
+
+        <p class="eyebrow">Početak rada</p>
+        <h2>Otvori smjenu</h2>
+
+        <p class="shift-instruction">
+            Prebrojite početni novac u blagajni i unesite iznos.
+        </p>
+
+        <div class="opening-cash-display">
+            <span>Početno stanje</span>
+            <strong id="opening-cash-display">0,00 €</strong>
+        </div>
+
+        <div class="opening-cash-quick-buttons">
+            <button type="button" data-opening-cash-quick="5000">
+                50 €
+            </button>
+
+            <button type="button" data-opening-cash-quick="10000">
+                100 €
+            </button>
+
+            <button type="button" data-opening-cash-quick="15000">
+                150 €
+            </button>
+
+            <button type="button" data-opening-cash-quick="20000">
+                200 €
+            </button>
+            <button type="button" data-opening-cash-quick="50000">
+                500 €
+            </button>
+        </div>
+
+        <div class="opening-cash-keypad" aria-label="Unos početnog stanja">
+            <button type="button" data-opening-cash-key="1">1</button>
+            <button type="button" data-opening-cash-key="2">2</button>
+            <button type="button" data-opening-cash-key="3">3</button>
+            <button type="button" data-opening-cash-key="4">4</button>
+            <button type="button" data-opening-cash-key="5">5</button>
+            <button type="button" data-opening-cash-key="6">6</button>
+            <button type="button" data-opening-cash-key="7">7</button>
+            <button type="button" data-opening-cash-key="8">8</button>
+            <button type="button" data-opening-cash-key="9">9</button>
+            <button type="button" data-opening-cash-key="clear">C</button>
+            <button type="button" data-opening-cash-key="0">0</button>
+            <button type="button" data-opening-cash-key="backspace" aria-label="Izbriši zadnju znamenku">
+                ←
+            </button>
+        </div>
+
+        <p id="open-shift-error" class="login-error" hidden></p>
+
+        <button id="confirm-open-shift" type="button">
+            Otvori smjenu
+        </button>
+    </dialog>
+    <dialog id="shift-dialog" class="shift-dialog">
+        <header class="shift-dialog-header">
+            <div>
+                <p class="eyebrow">Aktivna smjena</p>
+                <h2 id="shift-dialog-title">Smjena</h2>
+            </div>
+
+            <button id="close-shift-dialog" type="button" aria-label="Zatvori pregled smjene">
+                ×
+            </button>
+        </header>
+
+        <div class="shift-dialog-content">
+            <dl class="shift-summary">
+                <div>
+                    <dt>Otvorio</dt>
+                    <dd id="shift-opened-by">—</dd>
+                </div>
+
+                <div>
+                    <dt>Vrijeme otvaranja</dt>
+                    <dd id="shift-opened-at">—</dd>
+                </div>
+
+                <div>
+                    <dt>Početni polog</dt>
+                    <dd id="shift-opening-cash">0,00 €</dd>
+                </div>
+
+                <div>
+                    <dt>Gotovinski promet</dt>
+                    <dd id="shift-cash-sales">0,00 €</dd>
+                </div>
+
+                <div>
+                    <dt>Kartični promet</dt>
+                    <dd id="shift-card-sales">0,00 €</dd>
+                </div>
+
+                <div>
+                    <dt>Broj računa</dt>
+                    <dd id="shift-receipt-count">0</dd>
+                </div>
+
+                <div class="shift-expected-row">
+                    <dt>Očekivano u blagajni</dt>
+                    <dd id="shift-expected-cash">0,00 €</dd>
+                </div>
+            </dl>
+
+            <button id="start-close-shift" type="button">
+                Zatvori smjenu
+            </button>
+        </div>
+    </dialog>
+    </dialog>
+
+    <dialog id="close-shift-confirmation-dialog" class="close-shift-dialog">
+        <div class="shift-icon" aria-hidden="true">€</div>
+
+        <p class="eyebrow">Završetak rada</p>
+        <h2>Zatvori smjenu</h2>
+
+        <p class="shift-instruction">
+            Prebrojite sav novac koji se trenutno nalazi u blagajni.
+        </p>
+
+        <div class="closing-cash-display">
+            <span>Stvarno stanje</span>
+            <strong id="closing-cash-display">0,00 €</strong>
+        </div>
+
+        <div class="closing-cash-keypad" aria-label="Unos stvarnog stanja">
+            <button type="button" data-closing-cash-key="1">1</button>
+            <button type="button" data-closing-cash-key="2">2</button>
+            <button type="button" data-closing-cash-key="3">3</button>
+            <button type="button" data-closing-cash-key="4">4</button>
+            <button type="button" data-closing-cash-key="5">5</button>
+            <button type="button" data-closing-cash-key="6">6</button>
+            <button type="button" data-closing-cash-key="7">7</button>
+            <button type="button" data-closing-cash-key="8">8</button>
+            <button type="button" data-closing-cash-key="9">9</button>
+            <button type="button" data-closing-cash-key="clear">C</button>
+            <button type="button" data-closing-cash-key="0">0</button>
+            <button type="button" data-closing-cash-key="backspace" aria-label="Izbriši zadnju znamenku">
+                ←
+            </button>
+        </div>
+
+        <p id="close-shift-error" class="login-error" hidden></p>
+
+        <div class="close-shift-actions">
+            <button id="cancel-close-shift" type="button">
+                Odustani
+            </button>
+
+            <button id="confirm-close-shift" type="button">
+                Zatvori smjenu
+            </button>
+        </div>
+    </dialog>
+</body>
 </body>
 
 </html>

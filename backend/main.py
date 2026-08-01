@@ -114,6 +114,24 @@ def require_admin(employee):
             detail="Potrebna je administratorska ovlast."
         )
 
+def get_open_shift(connection):
+    return connection.execute(
+        """
+        SELECT
+            shifts.id,
+            shifts.opened_at,
+            shifts.opening_cash_cents,
+            shifts.status,
+            employees.id AS opened_by_employee_id,
+            employees.name AS opened_by_employee_name
+        FROM shifts
+        JOIN employees
+            ON employees.id = shifts.opened_by_employee_id
+        WHERE shifts.status = 'open'
+        LIMIT 1
+        """
+    ).fetchone()
+
 @app.post("/api/auth/login")
 def login(login_request: LoginRequest, response: Response):
     connection = get_database_connection()
@@ -170,6 +188,11 @@ def login(login_request: LoginRequest, response: Response):
     finally:
         connection.close()
 
+class OpenShiftRequest(BaseModel):
+    opening_cash_cents: int = Field(ge=0)
+
+class CloseShiftRequest(BaseModel):
+    actual_cash_cents: int = Field(ge=0)
 
 @app.get("/api/auth/me")
 def get_current_employee(request: Request):
@@ -187,6 +210,292 @@ def logout(request: Request, response: Response):
         key="pos_session",
         path="/"
     )
+
+@app.get("/api/shifts/current")
+def get_current_shift(request: Request):
+    get_authenticated_employee(request)
+
+    connection = get_database_connection()
+
+    try:
+        shift = get_open_shift(connection)
+
+        if shift is None:
+            return {
+                "is_open": False,
+                "shift": None
+            }
+
+        totals = connection.execute(
+            """
+            SELECT
+                COUNT(
+                    CASE
+                        WHEN status = 'completed'
+                        THEN 1
+                    END
+                ) AS receipt_count,
+
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN status = 'completed'
+                                AND payment_method = 'cash'
+                            THEN total_cents
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS cash_total_cents,
+
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN status = 'completed'
+                                AND payment_method = 'card'
+                            THEN total_cents
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS card_total_cents,
+
+                COUNT(
+                    CASE
+                        WHEN status = 'storned'
+                        THEN 1
+                    END
+                ) AS storned_receipt_count
+            FROM sales
+            WHERE shift_id = ?
+            """,
+            (shift["id"],)
+        ).fetchone()
+
+        expected_cash_cents = (
+            shift["opening_cash_cents"] +
+            totals["cash_total_cents"]
+        )
+
+        return {
+            "is_open": True,
+            "shift": {
+                "id": shift["id"],
+                "opened_at": shift["opened_at"],
+                "opening_cash_cents": shift[
+                    "opening_cash_cents"
+                ],
+                "expected_cash_cents": expected_cash_cents,
+                "cash_total_cents": totals["cash_total_cents"],
+                "card_total_cents": totals["card_total_cents"],
+                "receipt_count": totals["receipt_count"],
+                "storned_receipt_count": totals[
+                    "storned_receipt_count"
+                ],
+                "opened_by": {
+                    "id": shift["opened_by_employee_id"],
+                    "name": shift["opened_by_employee_name"]
+                },
+                "status": shift["status"]
+            }
+        }
+
+    finally:
+        connection.close()
+
+
+@app.post("/api/shifts/open", status_code=201)
+def open_shift(
+    shift_request: OpenShiftRequest,
+    request: Request
+):
+    employee = get_authenticated_employee(request)
+    require_admin(employee)
+
+    connection = get_database_connection()
+
+    try:
+        existing_shift = get_open_shift(connection)
+
+        if existing_shift is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Smjena je već otvorena."
+            )
+
+        opened_at = datetime.now(timezone.utc).isoformat()
+
+        cursor = connection.execute(
+            """
+            INSERT INTO shifts (
+                opened_at,
+                opened_by_employee_id,
+                opening_cash_cents,
+                status
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                opened_at,
+                employee["id"],
+                shift_request.opening_cash_cents,
+                "open"
+            )
+        )
+
+        connection.commit()
+
+        return {
+            "id": cursor.lastrowid,
+            "opened_at": opened_at,
+            "opening_cash_cents": (
+                shift_request.opening_cash_cents
+            ),
+            "opened_by": employee,
+            "status": "open"
+        }
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+@app.post("/api/shifts/close")
+def close_shift(
+    shift_request: CloseShiftRequest,
+    request: Request
+):
+    employee = get_authenticated_employee(request)
+    require_admin(employee)
+
+    connection = get_database_connection()
+
+    try:
+        shift = get_open_shift(connection)
+
+        if shift is None:
+            raise HTTPException(
+                status_code=409,
+                detail="Nema otvorene smjene."
+            )
+
+        totals = connection.execute(
+            """
+            SELECT
+                COUNT(
+                    CASE
+                        WHEN status = 'completed'
+                        THEN 1
+                    END
+                ) AS receipt_count,
+
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN status = 'completed'
+                                AND payment_method = 'cash'
+                            THEN total_cents
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS cash_total_cents,
+
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN status = 'completed'
+                                AND payment_method = 'card'
+                            THEN total_cents
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS card_total_cents,
+
+                COUNT(
+                    CASE
+                        WHEN status = 'storned'
+                        THEN 1
+                    END
+                ) AS storned_receipt_count
+            FROM sales
+            WHERE shift_id = ?
+            """,
+            (shift["id"],)
+        ).fetchone()
+
+        expected_cash_cents = (
+            shift["opening_cash_cents"] +
+            totals["cash_total_cents"]
+        )
+
+        cash_difference_cents = (
+            shift_request.actual_cash_cents -
+            expected_cash_cents
+        )
+
+        closed_at = datetime.now(timezone.utc).isoformat()
+
+        connection.execute(
+            """
+            UPDATE shifts
+            SET
+                closed_at = ?,
+                closed_by_employee_id = ?,
+                expected_cash_cents = ?,
+                actual_cash_cents = ?,
+                cash_difference_cents = ?,
+                status = 'closed'
+            WHERE id = ?
+              AND status = 'open'
+            """,
+            (
+                closed_at,
+                employee["id"],
+                expected_cash_cents,
+                shift_request.actual_cash_cents,
+                cash_difference_cents,
+                shift["id"]
+            )
+        )
+
+        connection.commit()
+
+        return {
+            "id": shift["id"],
+            "opened_at": shift["opened_at"],
+            "closed_at": closed_at,
+            "opening_cash_cents": shift[
+                "opening_cash_cents"
+            ],
+            "cash_total_cents": totals["cash_total_cents"],
+            "card_total_cents": totals["card_total_cents"],
+            "expected_cash_cents": expected_cash_cents,
+            "actual_cash_cents": (
+                shift_request.actual_cash_cents
+            ),
+            "cash_difference_cents": cash_difference_cents,
+            "receipt_count": totals["receipt_count"],
+            "storned_receipt_count": totals[
+                "storned_receipt_count"
+            ],
+            "opened_by": {
+                "id": shift["opened_by_employee_id"],
+                "name": shift["opened_by_employee_name"]
+            },
+            "closed_by": employee,
+            "status": "closed"
+        }
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
 
 @app.get("/api/products")
 def get_products():
@@ -600,6 +909,14 @@ def create_sale(sale: SaleRequest, request: Request):
     connection = get_database_connection()
 
     try:
+        shift = get_open_shift(connection)
+
+        if shift is None:
+            raise HTTPException(
+                status_code=409,
+                detail="Potrebno je otvoriti smjenu."
+            )
+
         prepared_items = []
         total_cents = 0
 
@@ -669,6 +986,7 @@ def create_sale(sale: SaleRequest, request: Request):
             """
             INSERT INTO sales (
                 employee_id,
+                shift_id,
                 receipt_number,
                 created_at,
                 payment_method,
@@ -677,10 +995,11 @@ def create_sale(sale: SaleRequest, request: Request):
                 change_cents,
                 status
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 employee["id"],
+                shift["id"],
                 receipt_number,
                 created_at,
                 sale.payment_method,
@@ -729,6 +1048,7 @@ def create_sale(sale: SaleRequest, request: Request):
     return {
         "id": sale_id,
         "employee": employee,
+        "shift_id": shift["id"],
         "receipt_number": receipt_number,
         "created_at": created_at,
         "payment_method": sale.payment_method,

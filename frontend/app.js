@@ -146,6 +146,73 @@ const loginError = document.querySelector("#login-error");
 const loginKeypad = document.querySelector(".login-keypad");
 const loginButton = document.querySelector("#login-button");
 
+const currentShiftButton = document.querySelector(
+    "#current-shift"
+);
+const openShiftDialog = document.querySelector(
+    "#open-shift-dialog"
+);
+const openingCashDisplay = document.querySelector(
+    "#opening-cash-display"
+);
+const openingCashQuickButtons = document.querySelectorAll(
+    "[data-opening-cash-quick]"
+);
+const openingCashKeypad = document.querySelector(
+    ".opening-cash-keypad"
+);
+const openShiftError = document.querySelector(
+    "#open-shift-error"
+);
+const confirmOpenShiftButton = document.querySelector(
+    "#confirm-open-shift"
+);
+const shiftDialog = document.querySelector("#shift-dialog");
+const shiftDialogTitle = document.querySelector(
+    "#shift-dialog-title"
+);
+const closeShiftDialogButton = document.querySelector(
+    "#close-shift-dialog"
+);
+const shiftOpenedBy = document.querySelector("#shift-opened-by");
+const shiftOpenedAt = document.querySelector("#shift-opened-at");
+const shiftOpeningCash = document.querySelector(
+    "#shift-opening-cash"
+);
+const shiftCashSales = document.querySelector(
+    "#shift-cash-sales"
+);
+const shiftCardSales = document.querySelector(
+    "#shift-card-sales"
+);
+const shiftReceiptCount = document.querySelector(
+    "#shift-receipt-count"
+);
+const shiftExpectedCash = document.querySelector(
+    "#shift-expected-cash"
+);
+const startCloseShiftButton = document.querySelector(
+    "#start-close-shift"
+);
+const closeShiftConfirmationDialog = document.querySelector(
+    "#close-shift-confirmation-dialog"
+);
+const closingCashDisplay = document.querySelector(
+    "#closing-cash-display"
+);
+const closingCashKeypad = document.querySelector(
+    ".closing-cash-keypad"
+);
+const closeShiftError = document.querySelector(
+    "#close-shift-error"
+);
+const cancelCloseShiftButton = document.querySelector(
+    "#cancel-close-shift"
+);
+const confirmCloseShiftButton = document.querySelector(
+    "#confirm-close-shift"
+);
+
 const order = new Map();
 
 let selectedSaleId = null;
@@ -157,6 +224,10 @@ let currentEmployee = null;
 let enteredPin = "";
 
 let inactivityTimer = null;
+
+let currentShift = null;
+let openingCashCents = 0;
+let closingCashCents = 0;
 
 function addProductToOrder(product) {
     const existingItem = order.get(product.id);
@@ -862,12 +933,16 @@ function setCurrentEmployee(employee) {
     if (loginDialog.open) {
         loginDialog.close();
     }
+    checkCurrentShift();
 }
 
 
 function showLogin() {
     currentEmployee = null;
     clearInactivityTimer();
+        if (openShiftDialog.open) {
+        openShiftDialog.close();
+    }
     enteredPin = "";
 
     currentEmployeeButton.hidden = true;
@@ -878,7 +953,6 @@ function showLogin() {
         loginDialog.showModal();
     }
 }
-
 
 async function checkAuthentication() {
     try {
@@ -956,6 +1030,330 @@ async function logout() {
         order.clear();
         renderOrder();
         showLogin();
+    }
+}
+
+function updateOpeningCashDisplay() {
+    openingCashDisplay.textContent =
+        euroFormatter.format(openingCashCents / 100);
+
+    openShiftError.hidden = true;
+}
+
+
+function handleOpeningCashKey(key) {
+    if (key === "clear") {
+        openingCashCents = 0;
+        updateOpeningCashDisplay();
+        return;
+    }
+
+    if (key === "backspace") {
+        openingCashCents = Math.floor(
+            openingCashCents / 10
+        );
+
+        updateOpeningCashDisplay();
+        return;
+    }
+
+    const digit = Number(key);
+
+    if (!Number.isInteger(digit)) {
+        return;
+    }
+
+    const nextAmount = openingCashCents * 10 + digit;
+
+    if (nextAmount > 9999999) {
+        return;
+    }
+
+    openingCashCents = nextAmount;
+    updateOpeningCashDisplay();
+}
+
+
+function setCurrentShift(shift) {
+    currentShift = shift;
+
+    currentShiftButton.textContent = `Smjena #${shift.id}`;
+    currentShiftButton.hidden = false;
+
+    if (openShiftDialog.open) {
+        openShiftDialog.close();
+    }
+}
+
+function showOpenShiftDialog() {
+    currentShift = null;
+    openingCashCents = 0;
+
+    currentShiftButton.textContent = "Smjena zatvorena";
+    currentShiftButton.hidden = false;
+
+    updateOpeningCashDisplay();
+
+    const isAdmin = currentEmployee?.role === "admin";
+
+    confirmOpenShiftButton.hidden = !isAdmin;
+
+    if (!isAdmin) {
+        openShiftError.textContent =
+            "Smjenu mora otvoriti administrator.";
+        openShiftError.hidden = false;
+    }
+
+    if (!openShiftDialog.open) {
+        openShiftDialog.showModal();
+    }
+}
+
+
+async function checkCurrentShift() {
+    try {
+        const response = await fetch("/api/shifts/current");
+        const result = await response.json();
+
+        if (response.status === 401) {
+            showLogin();
+            return null;
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                result.detail ||
+                "Smjena se nije mogla učitati."
+            );
+        }
+
+        if (!result.is_open) {
+            showOpenShiftDialog();
+            return null;
+        }
+
+        setCurrentShift(result.shift);
+        return result.shift;
+
+    } catch (error) {
+        window.alert(error.message);
+        console.error(error);
+        return null;
+    }
+}
+
+function updateClosingCashDisplay() {
+    closingCashDisplay.textContent =
+        euroFormatter.format(closingCashCents / 100);
+
+    closeShiftError.hidden = true;
+}
+
+
+function handleClosingCashKey(key) {
+    if (key === "clear") {
+        closingCashCents = 0;
+        updateClosingCashDisplay();
+        return;
+    }
+
+    if (key === "backspace") {
+        closingCashCents = Math.floor(
+            closingCashCents / 10
+        );
+
+        updateClosingCashDisplay();
+        return;
+    }
+
+    const digit = Number(key);
+
+    if (!Number.isInteger(digit)) {
+        return;
+    }
+
+    const nextAmount = closingCashCents * 10 + digit;
+
+    if (nextAmount > 9999999) {
+        return;
+    }
+
+    closingCashCents = nextAmount;
+    updateClosingCashDisplay();
+}
+
+
+function showCloseShiftDialog() {
+    closingCashCents = 0;
+    updateClosingCashDisplay();
+
+    if (shiftDialog.open) {
+        shiftDialog.close();
+    }
+
+    closeShiftConfirmationDialog.showModal();
+}
+
+async function openShiftOverview() {
+    const shift = await checkCurrentShift();
+
+    if (shift === null) {
+        return;
+    }
+
+    shiftDialogTitle.textContent = `Smjena #${shift.id}`;
+
+    shiftOpenedBy.textContent = shift.opened_by.name;
+
+    shiftOpenedAt.textContent =
+        dateTimeFormatter.format(
+            new Date(shift.opened_at)
+        );
+
+    shiftOpeningCash.textContent =
+        euroFormatter.format(
+            shift.opening_cash_cents / 100
+        );
+
+    shiftCashSales.textContent =
+        euroFormatter.format(
+            shift.cash_total_cents / 100
+        );
+
+    shiftCardSales.textContent =
+        euroFormatter.format(
+            shift.card_total_cents / 100
+        );
+
+    shiftReceiptCount.textContent =
+        String(shift.receipt_count);
+
+    shiftExpectedCash.textContent =
+        euroFormatter.format(
+            shift.expected_cash_cents / 100
+        );
+
+    startCloseShiftButton.hidden =
+        currentEmployee?.role !== "admin";
+
+    shiftDialog.showModal();
+}
+
+async function openShift() {
+    confirmOpenShiftButton.disabled = true;
+    confirmOpenShiftButton.textContent = "Otvaranje...";
+
+    try {
+        const response = await fetch("/api/shifts/open", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                opening_cash_cents: openingCashCents
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.detail ||
+                "Smjena se nije mogla otvoriti."
+            );
+        }
+
+        await checkCurrentShift();
+
+    } catch (error) {
+        openShiftError.textContent = error.message;
+        openShiftError.hidden = false;
+
+        console.error(error);
+
+    } finally {
+        confirmOpenShiftButton.disabled = false;
+        confirmOpenShiftButton.textContent = "Otvori smjenu";
+    }
+}
+
+async function closeShift() {
+    confirmCloseShiftButton.disabled = true;
+    confirmCloseShiftButton.textContent = "Zatvaranje...";
+
+    closeShiftError.hidden = true;
+
+    try {
+        const response = await fetch("/api/shifts/close", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                actual_cash_cents: closingCashCents
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.detail ||
+                "Smjena se nije mogla zatvoriti."
+            );
+        }
+
+        let differenceMessage = "Blagajna je točna.";
+
+        if (result.cash_difference_cents > 0) {
+            differenceMessage =
+                `Višak u blagajni: ${
+                    euroFormatter.format(
+                        result.cash_difference_cents / 100
+                    )
+                }`;
+        }
+
+        if (result.cash_difference_cents < 0) {
+            differenceMessage =
+                `Manjak u blagajni: ${
+                    euroFormatter.format(
+                        Math.abs(
+                            result.cash_difference_cents
+                        ) / 100
+                    )
+                }`;
+        }
+
+        window.alert(
+            `Smjena je uspješno zatvorena.\n\n` +
+            `Očekivano: ${
+                euroFormatter.format(
+                    result.expected_cash_cents / 100
+                )
+            }\n` +
+            `Prebrojeno: ${
+                euroFormatter.format(
+                    result.actual_cash_cents / 100
+                )
+            }\n` +
+            differenceMessage
+        );
+
+        currentShift = null;
+        closeShiftConfirmationDialog.close();
+
+        await logout();
+
+    } catch (error) {
+        closeShiftError.textContent = error.message;
+        closeShiftError.hidden = false;
+
+        console.error(error);
+
+    } finally {
+        confirmCloseShiftButton.disabled = false;
+        confirmCloseShiftButton.textContent = "Zatvori smjenu";
     }
 }
 
@@ -1200,6 +1598,95 @@ window.addEventListener(
     "keydown",
     resetInactivityTimer
 );
+
+for (const button of openingCashQuickButtons) {
+    button.addEventListener("click", () => {
+        openingCashCents = Number(
+            button.dataset.openingCashQuick
+        );
+
+        updateOpeningCashDisplay();
+    });
+}
+
+openingCashKeypad.addEventListener("click", (event) => {
+    const button = event.target.closest(
+        "[data-opening-cash-key]"
+    );
+
+    if (!button) {
+        return;
+    }
+
+    handleOpeningCashKey(
+        button.dataset.openingCashKey
+    );
+});
+
+confirmOpenShiftButton.addEventListener("click", () => {
+    openShift();
+});
+
+openShiftDialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+});
+
+openShiftDialog.addEventListener("close", () => {
+    if (
+        currentEmployee !== null &&
+        currentShift === null
+    ) {
+        window.setTimeout(() => {
+            showOpenShiftDialog();
+        }, 0);
+    }
+});
+
+currentShiftButton.addEventListener("click", () => {
+    if (currentShift !== null) {
+        openShiftOverview();
+    }
+});
+
+closeShiftDialogButton.addEventListener("click", () => {
+    shiftDialog.close();
+});
+
+startCloseShiftButton.addEventListener("click", () => {
+    showCloseShiftDialog();
+});
+
+closingCashKeypad.addEventListener("click", (event) => {
+    const button = event.target.closest(
+        "[data-closing-cash-key]"
+    );
+
+    if (!button) {
+        return;
+    }
+
+    handleClosingCashKey(
+        button.dataset.closingCashKey
+    );
+});
+
+cancelCloseShiftButton.addEventListener("click", () => {
+    closeShiftConfirmationDialog.close();
+    openShiftOverview();
+});
+
+closeShiftConfirmationDialog.addEventListener(
+    "cancel",
+    (event) => {
+        event.preventDefault();
+        closeShiftConfirmationDialog.close();
+        openShiftOverview();
+    }
+);
+
+confirmCloseShiftButton.addEventListener("click", () => {
+    closeShift();
+});
 
 loadProducts();
 checkAuthentication();
