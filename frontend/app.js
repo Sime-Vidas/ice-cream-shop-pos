@@ -1077,7 +1077,7 @@ function handleOpeningCashKey(key) {
 function setCurrentShift(shift) {
     currentShift = shift;
 
-    currentShiftButton.textContent = `Smjena #${shift.id}`;
+    currentShiftButton.textContent = `Aktivna smjena`;
     currentShiftButton.hidden = false;
 
     if (openShiftDialog.open) {
@@ -1201,7 +1201,7 @@ async function openShiftOverview() {
         return;
     }
 
-    shiftDialogTitle.textContent = `Smjena #${shift.id}`;
+    shiftDialogTitle.textContent = `Aktivna smjena`;
 
     shiftOpenedBy.textContent = shift.opened_by.name;
 
